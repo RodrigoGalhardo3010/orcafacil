@@ -1,0 +1,16 @@
+node_modules
+.nuxt
+.output
+.env
+.env.*
+!.env.example
+.DS_Store
+.wrangler
+*.pem
+*.key
+*.p12
+*.pfx
+.dev.vars
+.dev.vars.*
+*.log
+coverage
