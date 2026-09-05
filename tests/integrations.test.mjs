@@ -18,6 +18,14 @@ function load(file, globals = {}) {
   return context.exports
 }
 
+test('runtime environment prefers Cloudflare bindings and keeps the Nuxt fallback', () => {
+  const { getRuntimeEnv } = load('server/utils/runtime-env.ts')
+  const event = { context: { cloudflare: { env: { SECRET: 'worker-secret' } } } }
+
+  assert.equal(getRuntimeEnv(event, 'SECRET', 'nuxt-value'), 'worker-secret')
+  assert.equal(getRuntimeEnv({ context: {} }, 'SECRET', 'nuxt-value'), 'nuxt-value')
+})
+
 for (const secret of ['', 'unit-test-secret']) {
   test(`webhook rejects ${secret ? 'invalid signatures' : 'missing configuration'} before calling billing`, async () => {
     let billingCalls = 0
