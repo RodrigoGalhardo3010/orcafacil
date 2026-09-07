@@ -10,7 +10,9 @@ const sending = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const publicUrl = ref('')
+const pdfUrl = ref('')
 const proposal = ref<any>(null)
+const sharing = ref(false)
 
 function money(value: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
@@ -23,6 +25,7 @@ async function load() {
     const result = await request<any>(`/api/proposals/${route.params.id}`)
     proposal.value = result.proposal
     publicUrl.value = result.publicUrl
+    pdfUrl.value = result.pdfUrl
   } catch (error: any) {
     errorMessage.value = error?.data?.statusMessage || error?.message || 'Não foi possível carregar.'
   } finally {
@@ -40,8 +43,10 @@ async function save() {
     const result = await request<any>(`/api/proposals/${route.params.id}`, { method: 'PUT', body: proposal.value })
     proposal.value = result.proposal
     successMessage.value = 'Alterações salvas.'
+    return true
   } catch (error: any) {
     errorMessage.value = error?.data?.statusMessage || error?.message || 'Erro ao salvar.'
+    return false
   } finally { saving.value = false }
 }
 
@@ -50,14 +55,15 @@ async function sendProposal() {
   successMessage.value = ''
   errorMessage.value = ''
   try {
-    await save()
+    if (!await save()) return
     const result = await request<any>(`/api/proposals/${route.params.id}/send`, { method: 'POST' })
     proposal.value.status = 'sent'
     publicUrl.value = result.publicUrl
+    pdfUrl.value = result.pdfUrl
     if (result.emailSent) {
-      successMessage.value = 'Proposta enviada por e-mail e liberada para compartilhamento.'
+      successMessage.value = 'E-mail enviado com o PDF anexado e o link para aceite.'
     } else if (!proposal.value.client_email) {
-      successMessage.value = 'Proposta liberada. Copie o link e envie ao cliente.'
+      successMessage.value = 'Proposta liberada com link de aceite e PDF para compartilhamento.'
     } else {
       errorMessage.value = result.emailStatus === 'resend_not_configured'
         ? 'Proposta liberada, mas o serviço de e-mail ainda não está configurado.'
@@ -73,10 +79,44 @@ async function copyLink() {
   successMessage.value = 'Link copiado.'
 }
 
+function whatsappMessage() {
+  return `Olá, ${proposal.value?.client_name}. Segue a proposta comercial ${proposal.value?.number || ''} em PDF para você guardar.\n\nPara visualizar a versão atual e aceitar ou recusar a proposta, acesse:\n${publicUrl.value}\n\nPDF para baixar e guardar:\n${pdfUrl.value}`
+}
+
 function whatsappUrl() {
   const phone = String(proposal.value?.client_phone || '').replace(/\D/g, '')
-  const text = encodeURIComponent(`Olá, ${proposal.value?.client_name}. Segue nossa proposta comercial: ${publicUrl.value}`)
+  const text = encodeURIComponent(whatsappMessage())
   return `https://wa.me/${phone ? `55${phone.replace(/^55/, '')}` : ''}?text=${text}`
+}
+
+async function shareWhatsApp() {
+  if (!pdfUrl.value || sharing.value) return
+  sharing.value = true
+  successMessage.value = ''
+  errorMessage.value = ''
+  try {
+    if (navigator.share && navigator.canShare) {
+      const response = await fetch(pdfUrl.value)
+      if (!response.ok) throw new Error('Não foi possível preparar o PDF.')
+      const file = new File([await response.blob()], proposalPdfName(), { type: 'application/pdf' })
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: proposal.value.title, text: whatsappMessage(), files: [file] })
+        successMessage.value = 'PDF e link preparados para compartilhamento.'
+        return
+      }
+    }
+    window.open(whatsappUrl(), '_blank', 'noopener,noreferrer')
+    successMessage.value = 'WhatsApp aberto com o link de aceite e o link do PDF.'
+  } catch (error: any) {
+    if (error?.name !== 'AbortError') errorMessage.value = error?.message || 'Não foi possível compartilhar a proposta.'
+  } finally {
+    sharing.value = false
+  }
+}
+
+function proposalPdfName() {
+  const number = String(proposal.value?.number || 'proposta').replace(/[^a-zA-Z0-9_-]+/g, '-').toLowerCase()
+  return `${number || 'proposta'}.pdf`
 }
 
 onMounted(load)
@@ -90,10 +130,11 @@ onMounted(load)
       <div v-if="loading" class="card empty">Carregando...</div>
       <template v-else-if="proposal">
         <div class="share-bar card">
-          <div><StatusBadge :status="proposal.status" /><span v-if="publicUrl" class="share-url">{{ publicUrl }}</span></div>
+          <div><StatusBadge :status="proposal.status" /><span v-if="proposal.status !== 'draft' && publicUrl" class="share-url">{{ publicUrl }}</span></div>
           <div class="share-actions">
-            <button v-if="publicUrl" class="btn btn-secondary btn-small" @click="copyLink">Copiar link</button>
-            <a v-if="publicUrl" class="btn btn-dark btn-small" :href="whatsappUrl()" target="_blank" rel="noopener">WhatsApp</a>
+            <button v-if="proposal.status !== 'draft' && publicUrl" class="btn btn-secondary btn-small" @click="copyLink">Copiar link</button>
+            <a v-if="proposal.status !== 'draft' && pdfUrl" class="btn btn-secondary btn-small" :href="pdfUrl" download>Baixar PDF</a>
+            <button v-if="proposal.status !== 'draft' && publicUrl" type="button" class="btn btn-dark btn-small" :disabled="sharing" @click="shareWhatsApp">{{ sharing ? 'Preparando PDF...' : 'WhatsApp' }}</button>
             <button class="btn btn-primary btn-small" :disabled="sending" @click="sendProposal">{{ sending ? 'Enviando...' : (proposal.status === 'draft' ? 'Enviar proposta' : 'Reenviar') }}</button>
           </div>
         </div>

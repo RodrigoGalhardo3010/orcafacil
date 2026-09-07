@@ -181,6 +181,9 @@ textarea { resize: vertical; }
 .document-terms h3 { font-size: 13px; margin-bottom: 6px; }
 .document-terms p { color: #475569; font-size: 13px; white-space: pre-line; }
 .response-box { margin-top: 34px; border-top: 1px solid var(--line); padding-top: 28px; }
+.pdf-copy-note { margin-top: 30px; padding: 18px; border: 1px solid #bbf7d0; border-radius: 12px; background: #f0fdf4; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.pdf-copy-note > div { display: grid; gap: 4px; }
+.pdf-copy-note span { color: #475569; font-size: 13px; }
 .response-actions { display: flex; gap: 10px; margin-top: 16px; }
 .powered-by { text-align: center; color: var(--muted); font-size: 11px; border-top: 1px solid var(--line); margin-top: 32px; padding-top: 22px; }
 .powered-by a { font-weight: 800; color: var(--ink); }
@@ -221,6 +224,7 @@ textarea { resize: vertical; }
   .document-number { align-items: flex-start; }
   .document-header { flex-direction: column; }
   .proposal-document { padding: 24px 18px; }
+  .pdf-copy-note { align-items: stretch; flex-direction: column; }
 }
 @media (max-width: 560px) {
   .topbar-nav > a:first-child { display: none; }

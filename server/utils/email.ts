@@ -1,6 +1,8 @@
 import type { H3Event } from 'h3'
 
-async function deliverEmail(apiKey: string, payload: { from: string, to: string, subject: string, html: string }) {
+type EmailAttachment = { filename: string; content: string }
+
+async function deliverEmail(apiKey: string, payload: { from: string, to: string, subject: string, html: string, attachments?: EmailAttachment[] }) {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -14,7 +16,7 @@ function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char] || char))
 }
 
-export async function sendProposalEmail(event: H3Event, to: string, companyName: string, clientName: string, title: string, url: string) {
+export async function sendProposalEmail(event: H3Event, to: string, companyName: string, clientName: string, title: string, url: string, pdf: Uint8Array, pdfFilename: string) {
   const config = useRuntimeConfig(event)
   const apiKey = getRuntimeEnv(event, 'NUXT_RESEND_API_KEY', config.resendApiKey)
   const from = getRuntimeEnv(event, 'NUXT_RESEND_FROM_EMAIL', config.resendFromEmail)
@@ -24,7 +26,8 @@ export async function sendProposalEmail(event: H3Event, to: string, companyName:
     from,
     to,
     subject: `${companyName} enviou uma proposta: ${title}`,
-    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px"><h2>Olá, ${escapeHtml(clientName)}</h2><p>${escapeHtml(companyName)} enviou uma proposta comercial para você.</p><p><strong>${escapeHtml(title)}</strong></p><p style="margin:28px 0"><a href="${url}" style="background:#16a34a;color:white;text-decoration:none;padding:12px 18px;border-radius:8px">Abrir proposta</a></p><p style="color:#64748b;font-size:12px">Você poderá visualizar e responder pelo celular.</p></div>`
+    html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px;color:#111827"><h2>Olá, ${escapeHtml(clientName)}</h2><p>${escapeHtml(companyName)} enviou uma proposta comercial para você.</p><p><strong>${escapeHtml(title)}</strong></p><p>O PDF está anexado para você guardar. Para visualizar a versão atual da proposta e <strong>aceitar ou recusar</strong>, use o botão abaixo.</p><p style="margin:28px 0"><a href="${url}" style="background:#16a34a;color:white;text-decoration:none;padding:12px 18px;border-radius:8px">Abrir e responder proposta</a></p><p style="color:#64748b;font-size:12px">Se o botão não abrir, copie este endereço no navegador:<br><a href="${url}">${url}</a></p></div>`,
+    attachments: [{ filename: pdfFilename, content: bytesToBase64(pdf) }]
   })
   return { sent: true, id: result.id }
 }

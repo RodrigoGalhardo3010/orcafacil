@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import ts from 'typescript'
+import { PDFDocument } from 'pdf-lib'
 
 function load(file, globals = {}) {
   const code = ts.transpileModule(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'), {
@@ -47,6 +48,7 @@ test('email sends escaped HTML to Resend and propagates provider failure', async
   const email = load('server/utils/email.ts', {
     useRuntimeConfig: () => ({ resendApiKey: 'test-key', resendFromEmail: 'OrçaFácil <test@example.com>' }),
     getRuntimeEnv: (_event, _name, fallback) => fallback,
+    bytesToBase64: bytes => Buffer.from(bytes).toString('base64'),
     fetch: async (url, options) => {
       assert.equal(url, 'https://api.resend.com/emails')
       assert.equal(options.method, 'POST')
@@ -54,12 +56,15 @@ test('email sends escaped HTML to Resend and propagates provider failure', async
       return { ok: succeed, json: async () => ({ id: 'unit-test-id' }) }
     }
   })
-  const result = await email.sendProposalEmail({}, 'test@example.com', '<Company>', '<Client>', '<Title>', 'https://example.com/p/demo')
+  const result = await email.sendProposalEmail({}, 'test@example.com', '<Company>', '<Client>', '<Title>', 'https://example.com/p/demo', new Uint8Array([37, 80, 68, 70]), 'proposta-teste.pdf')
   assert.equal(result.sent, true)
   assert.equal(result.id, 'unit-test-id')
   assert.deepEqual(payload.to, ['test@example.com'])
   assert.ok(payload.html.includes('&lt;Client&gt;'))
   assert.ok(!payload.html.includes('<Company>'))
+  assert.match(payload.html, /aceitar ou recusar/)
+  assert.equal(payload.attachments[0].filename, 'proposta-teste.pdf')
+  assert.equal(payload.attachments[0].content, 'JVBERg==')
   succeed = false
   await assert.rejects(email.sendOwnerResponseEmail({}, 'test@example.com', 'Client', 'Title', 'accepted'), error => error.statusCode === 502)
 })
@@ -71,6 +76,28 @@ test('unconfigured email does not call the provider', async () => {
     fetch: () => { throw new Error('Unexpected external request') }
   })
   assert.equal((await email.sendProposalEmail({}, '', '', '', '', '')).sent, false)
+})
+
+test('proposal PDF is valid, paginated and identifies the acceptance link', async () => {
+  const pdf = await import('../server/utils/proposal-pdf.ts')
+  const bytes = await pdf.createProposalPdf({
+    companyName: 'Climatização São José', number: 'OF-2026-01001', clientName: 'João Oliveira',
+    title: 'Instalação de ar-condicionado 12.000 BTUs',
+    introduction: 'Apresentamos a proposta para execução do serviço solicitado.',
+    validUntil: '2026-09-30', paymentTerms: '50% na aprovação e 50% na conclusão.',
+    notes: 'Inclui instalação, acabamento e garantia de 90 dias.',
+    subtotal: 1200, discount: 100, total: 1100,
+    items: Array.from({ length: 30 }, (_, index) => ({
+      description: `Serviço técnico detalhado ${index + 1} com materiais e acabamento`, quantity: 1, unit_price: 40
+    })),
+    publicUrl: 'https://orcafacil.example/p/token-de-teste'
+  })
+  const document = await PDFDocument.load(bytes)
+
+  assert.ok(bytes.length > 3000)
+  assert.ok(document.getPageCount() > 1)
+  assert.equal(document.getTitle(), 'OF-2026-01001 - Instalação de ar-condicionado 12.000 BTUs')
+  assert.equal(pdf.proposalPdfFilename('OF-2026-01001'), 'of-2026-01001.pdf')
 })
 
 test('quote assistant rejects invented readiness and sanitizes its draft', () => {

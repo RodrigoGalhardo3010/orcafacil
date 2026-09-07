@@ -8,6 +8,7 @@ const responseName = ref('')
 const responseEmail = ref('')
 const responding = ref(false)
 const responseDone = ref('')
+const pdfUrl = computed(() => route.params.token === 'demo' ? '' : `/api/public/proposals/${route.params.token}/pdf`)
 
 function money(value: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
@@ -68,6 +69,8 @@ onMounted(load)
       <section class="document-items"><div class="document-item document-item-head"><span>Descrição</span><span>Qtd.</span><span>Valor</span><span>Total</span></div><div v-for="(item, index) in proposal.items" :key="index" class="document-item"><span>{{ item.description }}</span><span>{{ item.quantity }}</span><span>{{ money(item.unit_price) }}</span><strong>{{ money(item.quantity * item.unit_price) }}</strong></div></section>
       <section class="document-total"><span>Subtotal <strong>{{ money(proposal.subtotal) }}</strong></span><span v-if="proposal.discount">Desconto <strong>- {{ money(proposal.discount) }}</strong></span><span class="grand">Total <strong>{{ money(proposal.total) }}</strong></span></section>
       <section class="document-terms"><div><h3>Condições de pagamento</h3><p>{{ proposal.payment_terms || 'A combinar.' }}</p></div><div v-if="proposal.notes"><h3>Observações</h3><p>{{ proposal.notes }}</p></div></section>
+
+      <section v-if="pdfUrl" class="pdf-copy-note"><div><strong>Guarde uma cópia</strong><span>Baixe o PDF para consulta. O aceite ou a recusa deve ser registrado nesta página.</span></div><a class="btn btn-secondary btn-small" :href="pdfUrl" download>Baixar PDF</a></section>
 
       <section v-if="proposal.status === 'sent'" class="response-box">
         <h2>Responder proposta</h2><p>Informe seu nome e registre sua decisão.</p><div class="form-grid two"><label>Nome<input v-model="responseName" placeholder="Seu nome" /></label><label>E-mail (opcional)<input v-model="responseEmail" type="email" placeholder="seu@email.com" /></label></div><div class="response-actions"><button class="btn btn-primary" :disabled="responding" @click="respond('accepted')">Aceitar proposta</button><button class="btn btn-secondary" :disabled="responding" @click="respond('rejected')">Recusar</button></div><p class="fine-print">Este recurso registra o aceite comercial e seus metadados básicos. Não substitui assinatura eletrônica qualificada quando a operação exigir formalidade específica.</p>
