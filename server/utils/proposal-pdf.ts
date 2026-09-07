@@ -173,7 +173,7 @@ export async function createProposalPdf(data: ProposalPdfData) {
     ensureSpace(30)
     y -= 6
     page.drawText(safeText(title).toUpperCase(), { x: MARGIN, y, size: 8, font: bold, color: green })
-    y -= 18
+    y -= 28
   }
 
   addPage()
