@@ -30,6 +30,9 @@ const errorMessage = ref('')
 const answer = ref('')
 const ready = ref(false)
 const messages = ref<ChatMessage[]>([])
+const chatMessages = ref<HTMLElement | null>(null)
+let activeInterview: AbortController | null = null
+let interviewSequence = 0
 const form = reactive<Draft>({
   service_area: '', client_name: '', client_email: '', client_phone: '', title: '',
   introduction: 'Obrigado pela oportunidade. Apresentamos abaixo nossa proposta comercial para a execução dos serviços descritos.',
@@ -50,12 +53,30 @@ function applyDraft(draft: Draft) {
   Object.assign(form, draft)
   form.items = draft.items?.length ? draft.items : [{ description: '', quantity: 1, unit_price: 0 }]
 }
+async function scrollToLatestMessage(behavior: ScrollBehavior = 'smooth') {
+  await nextTick()
+  chatMessages.value?.scrollTo({ top: chatMessages.value.scrollHeight, behavior })
+}
+function cancelInterview() {
+  interviewSequence++
+  activeInterview?.abort()
+  activeInterview = null
+  loading.value = false
+}
+function chooseAnotherArea() {
+  cancelInterview()
+  mode.value = 'choice'
+  messages.value = []
+  errorMessage.value = ''
+}
 function chooseManual() {
+  cancelInterview()
   mode.value = 'manual'
   ready.value = true
   errorMessage.value = ''
 }
 async function chooseArea(area: typeof areas[number]) {
+  cancelInterview()
   mode.value = 'ai'
   form.service_area = area.id
   messages.value = [{ role: 'user', content: `Quero criar uma proposta na área de ${area.name}.` }]
@@ -69,20 +90,42 @@ async function sendAnswer() {
   await interview()
 }
 async function interview() {
+  const sequence = ++interviewSequence
+  activeInterview?.abort()
+  const controller = new AbortController()
+  activeInterview = controller
+  const timeout = window.setTimeout(() => controller.abort(), 70000)
   loading.value = true
   errorMessage.value = ''
+  await scrollToLatestMessage()
   try {
     const result = await request<{ draft: Draft; assistant_message: string; ready: boolean }>('/api/ai/quote-interview', {
-      method: 'POST', body: { messages: messages.value, draft: form }
+      method: 'POST', body: { messages: messages.value, draft: form }, signal: controller.signal
     })
+    if (sequence !== interviewSequence) return
+    if (!result?.draft || !result?.assistant_message?.trim()) {
+      throw new Error('A IA não enviou a próxima pergunta. Tente novamente; seu rascunho foi preservado.')
+    }
     applyDraft(result.draft)
-    messages.value.push({ role: 'assistant', content: result.assistant_message })
+    messages.value.push({ role: 'assistant', content: result.assistant_message.trim() })
     ready.value = result.ready
   } catch (error: any) {
-    errorMessage.value = error?.data?.statusMessage || error?.message || 'Não foi possível consultar a IA.'
+    if (sequence !== interviewSequence) return
+    errorMessage.value = controller.signal.aborted
+      ? 'A IA demorou mais do que o esperado. Seu rascunho foi preservado e você pode tentar novamente.'
+      : (error?.data?.statusMessage || error?.message || 'Não foi possível consultar a IA. Seu rascunho foi preservado.')
   } finally {
-    loading.value = false
+    window.clearTimeout(timeout)
+    if (sequence === interviewSequence) {
+      loading.value = false
+      activeInterview = null
+      await scrollToLatestMessage()
+    }
   }
+}
+async function retryInterview() {
+  if (loading.value || messages.value.at(-1)?.role !== 'user') return
+  await interview()
 }
 async function save() {
   saving.value = true
@@ -96,6 +139,9 @@ async function save() {
     saving.value = false
   }
 }
+
+watch(() => messages.value.length, () => scrollToLatestMessage())
+onBeforeUnmount(cancelInterview)
 </script>
 
 <template>
@@ -123,16 +169,19 @@ async function save() {
 
       <div v-else-if="mode === 'ai' && !ready" class="assistant-layout">
         <section class="card assistant-card">
-          <div class="assistant-header"><div><span class="ai-avatar">O</span><div><strong>Assistente OrçaFácil</strong><small>{{ selectedArea?.name }}</small></div></div><button type="button" class="text-link link-button" @click="mode = 'choice'">Trocar área</button></div>
-          <div class="chat-messages">
+          <div class="assistant-header"><div><span class="ai-avatar">O</span><div><strong>Assistente OrçaFácil</strong><small>{{ selectedArea?.name }}</small></div></div><button type="button" class="text-link link-button" @click="chooseAnotherArea">Trocar área</button></div>
+          <div ref="chatMessages" class="chat-messages" aria-live="polite">
             <div v-for="(message, index) in messages" :key="index" :class="['chat-message', message.role]">{{ message.content }}</div>
-            <div v-if="loading" class="chat-message assistant typing">Analisando sua resposta…</div>
+            <div v-if="loading" class="chat-message assistant typing">Analisando sua resposta… Isso pode levar alguns segundos.</div>
+            <div v-else-if="errorMessage" class="chat-message assistant chat-error" role="alert">
+              <span>{{ errorMessage }}</span>
+              <button v-if="messages.at(-1)?.role === 'user'" type="button" class="retry-button" @click="retryInterview">Tentar novamente</button>
+            </div>
           </div>
           <form class="chat-input" @submit.prevent="sendAnswer">
             <textarea v-model="answer" rows="2" :disabled="loading" placeholder="Responda com suas palavras…" @keydown.enter.exact.prevent="sendAnswer" />
             <button class="btn btn-primary" :disabled="loading || !answer.trim()">Enviar</button>
           </form>
-          <p v-if="errorMessage" class="notice error">{{ errorMessage }}</p>
         </section>
         <aside class="card draft-card"><span class="eyebrow">RASCUNHO EM TEMPO REAL</span><h3>{{ form.title || 'Sua proposta' }}</h3><p>{{ form.client_name || 'Cliente ainda não informado' }}</p><div v-if="form.items.length && form.items[0]?.description" class="draft-items"><div v-for="(item, index) in form.items" :key="index"><span>{{ item.description }}</span><strong>{{ money(item.quantity * item.unit_price) }}</strong></div></div><div class="draft-total"><span>Total</span><strong>{{ money(total) }}</strong></div><small>Você poderá revisar tudo antes de salvar.</small></aside>
       </div>
