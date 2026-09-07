@@ -11,6 +11,8 @@ export default defineNuxtConfig({
     mercadoPagoWebhookSecret: '',
     resendApiKey: '',
     resendFromEmail: 'OrçaFácil <onboarding@resend.dev>',
+    deepseekApiKey: '',
+    deepseekModel: 'deepseek-v4-flash',
     eventHashSecret: '',
     public: {
       siteUrl: 'http://localhost:3000',

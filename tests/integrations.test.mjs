@@ -72,3 +72,40 @@ test('unconfigured email does not call the provider', async () => {
   })
   assert.equal((await email.sendProposalEmail({}, '', '', '', '', '')).sent, false)
 })
+
+test('quote assistant rejects invented readiness and sanitizes its draft', () => {
+  const assistant = load('server/utils/quote-assistant.ts')
+  const result = assistant.validateAssistantResult({
+    ready: true,
+    assistant_message: 'Tudo pronto.',
+    draft: {
+      service_area: 'mecanica',
+      client_name: 'João',
+      title: 'Revisão do veículo',
+      items: [{ description: 'Mão de obra', quantity: 1, unit_price: 350 }],
+      payment_terms: '',
+      valid_until: 'data inválida'
+    }
+  })
+
+  assert.equal(result.ready, false)
+  assert.equal(JSON.stringify(result.missing_fields), JSON.stringify(['valid_until', 'payment_terms']))
+  assert.equal(result.draft.items[0].unit_price, 350)
+  assert.equal(result.draft.valid_until, '')
+})
+
+test('quote assistant marks only a complete professional quote as ready', () => {
+  const assistant = load('server/utils/quote-assistant.ts')
+  const result = assistant.validateAssistantResult({
+    assistant_message: 'Revise sua proposta.',
+    draft: {
+      service_area: 'marcenaria', client_name: 'Maria', title: 'Armário planejado',
+      valid_until: '2026-09-30', payment_terms: '50% de entrada e 50% na entrega',
+      notes: 'MDF amadeirado, ferragens inclusas.', discount: 0,
+      items: [{ description: 'Fabricação e instalação do armário', quantity: 1, unit_price: 4800 }]
+    }
+  })
+
+  assert.equal(result.ready, true)
+  assert.equal(result.missing_fields.length, 0)
+})
