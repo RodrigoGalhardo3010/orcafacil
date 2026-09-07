@@ -1,3 +1,48 @@
+const quoteResponseSchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['draft', 'assistant_message', 'ready', 'missing_fields'],
+  properties: {
+    draft: {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'service_area', 'client_name', 'client_email', 'client_phone', 'title',
+        'introduction', 'valid_until', 'payment_terms', 'notes', 'discount', 'items'
+      ],
+      properties: {
+        service_area: { type: 'string' },
+        client_name: { type: 'string' },
+        client_email: { type: 'string' },
+        client_phone: { type: 'string' },
+        title: { type: 'string' },
+        introduction: { type: 'string' },
+        valid_until: { type: 'string' },
+        payment_terms: { type: 'string' },
+        notes: { type: 'string' },
+        discount: { type: 'number' },
+        items: {
+          type: 'array',
+          maxItems: 20,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['description', 'quantity', 'unit_price'],
+            properties: {
+              description: { type: 'string' },
+              quantity: { type: 'number' },
+              unit_price: { type: 'number' }
+            }
+          }
+        }
+      }
+    },
+    assistant_message: { type: 'string' },
+    ready: { type: 'boolean' },
+    missing_fields: { type: 'array', items: { type: 'string' } }
+  }
+}
+
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
   const body = await readBody(event)
@@ -19,67 +64,64 @@ export default defineEventHandler(async (event) => {
 
   const currentDraft = sanitizeQuoteDraft(body?.draft)
   const today = new Date().toISOString().slice(0, 10)
-  const requestMessages = [
-    { role: 'system', content: quoteAssistantSystemPrompt(today) },
-    { role: 'system', content: `Rascunho atual validado pelo servidor: ${JSON.stringify(currentDraft)}` },
-    ...messages
-  ]
+
+  if (isQuotePromptInjection(messages.at(-1)?.content)) {
+    return validateAssistantResult({
+      draft: currentDraft,
+      assistant_message: 'Posso ajudar somente a elaborar esta proposta comercial. Qual informação do serviço você quer acrescentar? Ex.: escopo, quantidade ou valor.'
+    })
+  }
+
+  const baseInstructions = `${quoteAssistantSystemPrompt(today)}\n\nRascunho atual validado pelo servidor: ${JSON.stringify(currentDraft)}`
 
   async function requestAssistant(extraInstruction = '') {
-    const outboundMessages = extraInstruction
-      ? requestMessages.map((message, index) => index === 0
-          ? { ...message, content: `${message.content}\n\n${extraInstruction}` }
-          : message)
-      : requestMessages
-
-    return await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await fetch('https://api.deepseek.com/responses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-      model,
-      thinking: { type: 'disabled' },
-      temperature: 0.2,
-      max_tokens: 2200,
-      response_format: { type: 'json_object' },
-      user_id: user.id,
-      messages: outboundMessages
+        model,
+        instructions: extraInstruction ? `${baseInstructions}\n\n${extraInstruction}` : baseInstructions,
+        input: messages,
+        reasoning: { effort: 'none' },
+        temperature: 0.2,
+        max_output_tokens: 2200,
+        user: user.id,
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'orcafacil_quote_interview',
+            schema: quoteResponseSchema
+          }
+        }
       }),
-      signal: AbortSignal.timeout(25000)
+      signal: AbortSignal.timeout(30000)
     }).catch(() => null)
-  }
 
-  const response = await requestAssistant()
+    if (!response?.ok) return null
+    const payload: any = await response.json()
+    if (payload?.status !== 'completed') return null
 
-  if (!response?.ok) {
-    throw createError({ statusCode: 502, statusMessage: 'A IA está indisponível no momento. Seu rascunho foi preservado; tente novamente.' })
-  }
+    const message = Array.isArray(payload?.output)
+      ? payload.output.find((item: any) => item?.type === 'message')
+      : null
+    const content = Array.isArray(message?.content)
+      ? message.content.find((part: any) => part?.type === 'output_text')?.text
+      : null
 
-  const payload: any = await response.json()
-  const choice = payload?.choices?.[0]
-  const content = choice?.message?.content
-  if (!content) throw createError({ statusCode: 502, statusMessage: 'A IA não conseguiu elaborar o orçamento. Tente explicar o serviço de outra forma.' })
-  if (choice?.finish_reason === 'length') throw createError({ statusCode: 502, statusMessage: 'A resposta ficou longa demais. Seu rascunho foi preservado; envie os detalhes em partes menores.' })
-
-  try {
-    return validateAssistantResult(parseAssistantContent(content))
-  } catch {
-    // Some model responses occasionally violate JSON mode despite a successful HTTP response.
-    // Retry the same turn once with a stricter, compact instruction instead of losing the draft.
-    const retryResponse = await requestAssistant('A resposta anterior não pôde ser interpretada. Responda novamente com JSON compacto e válido, sem markdown, comentários ou texto fora do objeto. Mantenha somente as propriedades exigidas.')
-    if (!retryResponse?.ok) {
-      throw createError({ statusCode: 502, statusMessage: 'A resposta da IA não pôde ser validada. Seu rascunho foi preservado.' })
-    }
-
-    const retryPayload: any = await retryResponse.json()
-    const retryChoice = retryPayload?.choices?.[0]
-    if (!retryChoice?.message?.content || retryChoice?.finish_reason === 'length') {
-      throw createError({ statusCode: 502, statusMessage: 'A resposta da IA não pôde ser validada. Seu rascunho foi preservado.' })
-    }
-
+    if (!content) return null
     try {
-      return validateAssistantResult(parseAssistantContent(retryChoice.message.content))
+      return validateAssistantResult(parseAssistantContent(content))
     } catch {
-      throw createError({ statusCode: 502, statusMessage: 'A resposta da IA não pôde ser validada. Seu rascunho foi preservado.' })
+      return null
     }
   }
+
+  const result = await requestAssistant()
+    || await requestAssistant('Gere novamente o resultado completo. Preencha todos os campos do schema, use strings vazias para dados ainda não informados e faça apenas uma pergunta curta em assistant_message.')
+
+  if (!result) {
+    throw createError({ statusCode: 502, statusMessage: 'A resposta da IA não pôde ser validada. Seu rascunho foi preservado.' })
+  }
+
+  return result
 })
