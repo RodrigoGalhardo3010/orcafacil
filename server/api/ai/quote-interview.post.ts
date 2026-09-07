@@ -97,9 +97,12 @@ export default defineEventHandler(async (event) => {
       signal: AbortSignal.timeout(30000)
     }).catch(() => null)
 
-    if (!response?.ok) return null
+    if (!response) return { result: null, failure: 'network' }
+    if (!response.ok) return { result: null, failure: `http_${response.status}` }
     const payload: any = await response.json()
-    if (payload?.status !== 'completed') return null
+    if (payload?.status !== 'completed') {
+      return { result: null, failure: payload?.incomplete_details?.reason === 'max_output_tokens' ? 'length' : 'incomplete' }
+    }
 
     const message = Array.isArray(payload?.output)
       ? payload.output.find((item: any) => item?.type === 'message')
@@ -108,19 +111,29 @@ export default defineEventHandler(async (event) => {
       ? message.content.find((part: any) => part?.type === 'output_text')?.text
       : null
 
-    if (!content) return null
+    if (!content) return { result: null, failure: 'empty' }
     try {
-      return validateAssistantResult(parseAssistantContent(content))
+      return { result: validateAssistantResult(parseAssistantContent(content)), failure: '' }
     } catch {
-      return null
+      return { result: null, failure: 'format' }
     }
   }
 
-  const result = await requestAssistant()
-    || await requestAssistant('Gere novamente o resultado completo. Preencha todos os campos do schema, use strings vazias para dados ainda não informados e faça apenas uma pergunta curta em assistant_message.')
+  const firstAttempt = await requestAssistant()
+  const retryable = ['network', 'incomplete', 'empty', 'format', 'length'].includes(firstAttempt.failure)
+  const finalAttempt = !firstAttempt.result && retryable
+    ? await requestAssistant('Gere novamente o resultado completo. Preencha todos os campos do schema, use strings vazias para dados ainda não informados e faça apenas uma pergunta curta em assistant_message.')
+    : firstAttempt
+  const result = firstAttempt.result || finalAttempt.result
 
   if (!result) {
-    throw createError({ statusCode: 502, statusMessage: 'A resposta da IA não pôde ser validada. Seu rascunho foi preservado.' })
+    const failure = finalAttempt.failure || firstAttempt.failure
+    if (failure === 'http_402') throw createError({ statusCode: 502, statusMessage: 'A conta da DeepSeek está sem saldo disponível. Seu rascunho foi preservado.' })
+    if (failure === 'http_429') throw createError({ statusCode: 502, statusMessage: 'A DeepSeek está com muitas solicitações. Aguarde alguns segundos e tente novamente; seu rascunho foi preservado.' })
+    if (failure === 'length') throw createError({ statusCode: 502, statusMessage: 'A resposta da IA excedeu o limite. Envie os detalhes em partes menores; seu rascunho foi preservado.' })
+    if (/^http_4/.test(failure)) throw createError({ statusCode: 502, statusMessage: `A DeepSeek recusou a estrutura da solicitação (${failure.replace('http_', '')}). Seu rascunho foi preservado.` })
+    if (failure === 'network' || /^http_5/.test(failure)) throw createError({ statusCode: 502, statusMessage: 'A DeepSeek está temporariamente indisponível. Tente novamente; seu rascunho foi preservado.' })
+    throw createError({ statusCode: 502, statusMessage: 'A DeepSeek retornou uma resposta fora do formato esperado. Seu rascunho foi preservado.' })
   }
 
   return result
