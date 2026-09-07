@@ -21,13 +21,15 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
   const publicUrl = `${config.public.siteUrl}/p/${proposal.public_token}`
   let emailSent = false
+  let emailStatus = proposal.client_email ? 'failed' : 'not_requested'
   if (proposal.client_email) {
     try {
       const result = await sendProposalEmail(event, proposal.client_email, profile?.company_name || 'Uma empresa', proposal.client_name, proposal.title, publicUrl)
       emailSent = result.sent
+      emailStatus = result.sent ? 'sent' : (result.reason || 'failed')
     } catch (error) {
       console.error('Email error', error)
     }
   }
-  return { proposal: updated, publicUrl, emailSent }
+  return { proposal: updated, publicUrl, emailSent, emailStatus }
 })

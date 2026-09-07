@@ -45,7 +45,8 @@ test('email sends escaped HTML to Resend and propagates provider failure', async
   let payload
   let succeed = true
   const email = load('server/utils/email.ts', {
-    useRuntimeConfig: () => ({ resendApiKey: 'test-key' }),
+    useRuntimeConfig: () => ({ resendApiKey: 'test-key', resendFromEmail: 'OrçaFácil <test@example.com>' }),
+    getRuntimeEnv: (_event, _name, fallback) => fallback,
     fetch: async (url, options) => {
       assert.equal(url, 'https://api.resend.com/emails')
       assert.equal(options.method, 'POST')
@@ -65,7 +66,8 @@ test('email sends escaped HTML to Resend and propagates provider failure', async
 
 test('unconfigured email does not call the provider', async () => {
   const email = load('server/utils/email.ts', {
-    useRuntimeConfig: () => ({ resendApiKey: '' }),
+    useRuntimeConfig: () => ({ resendApiKey: '', resendFromEmail: '' }),
+    getRuntimeEnv: (_event, _name, fallback) => fallback,
     fetch: () => { throw new Error('Unexpected external request') }
   })
   assert.equal((await email.sendProposalEmail({}, '', '', '', '', '')).sent, false)

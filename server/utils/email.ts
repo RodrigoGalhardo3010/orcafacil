@@ -16,9 +16,12 @@ function escapeHtml(value: string) {
 
 export async function sendProposalEmail(event: H3Event, to: string, companyName: string, clientName: string, title: string, url: string) {
   const config = useRuntimeConfig(event)
-  if (!config.resendApiKey) return { sent: false, reason: 'resend_not_configured' }
-  const result = await deliverEmail(config.resendApiKey, {
-    from: 'OrçaFácil <propostas@orcafacil.com.br>',
+  const apiKey = getRuntimeEnv(event, 'NUXT_RESEND_API_KEY', config.resendApiKey)
+  const from = getRuntimeEnv(event, 'NUXT_RESEND_FROM_EMAIL', config.resendFromEmail)
+  if (!apiKey) return { sent: false, reason: 'resend_not_configured' }
+  if (!from) return { sent: false, reason: 'sender_not_configured' }
+  const result = await deliverEmail(apiKey, {
+    from,
     to,
     subject: `${companyName} enviou uma proposta: ${title}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px"><h2>Olá, ${escapeHtml(clientName)}</h2><p>${escapeHtml(companyName)} enviou uma proposta comercial para você.</p><p><strong>${escapeHtml(title)}</strong></p><p style="margin:28px 0"><a href="${url}" style="background:#16a34a;color:white;text-decoration:none;padding:12px 18px;border-radius:8px">Abrir proposta</a></p><p style="color:#64748b;font-size:12px">Você poderá visualizar e responder pelo celular.</p></div>`
@@ -28,10 +31,13 @@ export async function sendProposalEmail(event: H3Event, to: string, companyName:
 
 export async function sendOwnerResponseEmail(event: H3Event, to: string, clientName: string, title: string, decision: string) {
   const config = useRuntimeConfig(event)
-  if (!config.resendApiKey) return { sent: false }
+  const apiKey = getRuntimeEnv(event, 'NUXT_RESEND_API_KEY', config.resendApiKey)
+  const from = getRuntimeEnv(event, 'NUXT_RESEND_FROM_EMAIL', config.resendFromEmail)
+  if (!apiKey) return { sent: false, reason: 'resend_not_configured' }
+  if (!from) return { sent: false, reason: 'sender_not_configured' }
   const accepted = decision === 'accepted'
-  await deliverEmail(config.resendApiKey, {
-    from: 'OrçaFácil <notificacoes@orcafacil.com.br>',
+  await deliverEmail(apiKey, {
+    from,
     to,
     subject: accepted ? `Proposta aceita por ${clientName}` : `Proposta recusada por ${clientName}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:24px"><h2>${accepted ? 'Proposta aceita' : 'Proposta recusada'}</h2><p><strong>${escapeHtml(clientName)}</strong> respondeu à proposta <strong>${escapeHtml(title)}</strong>.</p></div>`

@@ -10,6 +10,7 @@ export default defineNuxtConfig({
     mercadoPagoAccessToken: '',
     mercadoPagoWebhookSecret: '',
     resendApiKey: '',
+    resendFromEmail: 'OrçaFácil <onboarding@resend.dev>',
     eventHashSecret: '',
     public: {
       siteUrl: 'http://localhost:3000',

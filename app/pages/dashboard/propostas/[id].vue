@@ -54,7 +54,15 @@ async function sendProposal() {
     const result = await request<any>(`/api/proposals/${route.params.id}/send`, { method: 'POST' })
     proposal.value.status = 'sent'
     publicUrl.value = result.publicUrl
-    successMessage.value = result.emailSent ? 'Proposta enviada por e-mail e liberada para compartilhamento.' : 'Proposta liberada. Copie o link e envie ao cliente.'
+    if (result.emailSent) {
+      successMessage.value = 'Proposta enviada por e-mail e liberada para compartilhamento.'
+    } else if (!proposal.value.client_email) {
+      successMessage.value = 'Proposta liberada. Copie o link e envie ao cliente.'
+    } else {
+      errorMessage.value = result.emailStatus === 'resend_not_configured'
+        ? 'Proposta liberada, mas o serviço de e-mail ainda não está configurado.'
+        : 'Proposta liberada, mas o e-mail não foi entregue. Use o link enquanto verificamos o remetente.'
+    }
   } catch (error: any) {
     errorMessage.value = error?.data?.statusMessage || error?.message || 'Erro ao enviar.'
   } finally { sending.value = false }
