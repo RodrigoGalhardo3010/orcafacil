@@ -109,3 +109,10 @@ test('quote assistant marks only a complete professional quote as ready', () => 
   assert.equal(result.ready, true)
   assert.equal(result.missing_fields.length, 0)
 })
+
+test('quote assistant accepts JSON wrapped in a markdown fence or short preface', () => {
+  const assistant = load('server/utils/quote-assistant.ts')
+  assert.equal(assistant.parseAssistantContent('```json\n{"ready":false}\n```').ready, false)
+  assert.equal(assistant.parseAssistantContent('Resposta:\n{"ready":true}').ready, true)
+  assert.throws(() => assistant.parseAssistantContent('resposta incompleta'))
+})

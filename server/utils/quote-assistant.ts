@@ -117,3 +117,22 @@ export function validateAssistantResult(value: any): QuoteAssistantResult {
     missing_fields: missing
   }
 }
+
+export function parseAssistantContent(content: unknown) {
+  const raw = String(content || '').trim()
+  if (!raw) throw new Error('empty assistant response')
+
+  const withoutFence = raw
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim()
+
+  try {
+    return JSON.parse(withoutFence)
+  } catch {
+    const start = withoutFence.indexOf('{')
+    const end = withoutFence.lastIndexOf('}')
+    if (start >= 0 && end > start) return JSON.parse(withoutFence.slice(start, end + 1))
+    throw new Error('invalid assistant JSON')
+  }
+}

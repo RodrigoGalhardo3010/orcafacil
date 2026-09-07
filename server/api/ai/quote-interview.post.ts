@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
       model,
       thinking: { type: 'disabled' },
       temperature: 0.2,
-      max_tokens: 1400,
+      max_tokens: 2200,
       response_format: { type: 'json_object' },
       user_id: user.id,
       messages: [
@@ -43,11 +43,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const payload: any = await response.json()
-  const content = payload?.choices?.[0]?.message?.content
+  const choice = payload?.choices?.[0]
+  const content = choice?.message?.content
   if (!content) throw createError({ statusCode: 502, statusMessage: 'A IA não conseguiu elaborar o orçamento. Tente explicar o serviço de outra forma.' })
+  if (choice?.finish_reason === 'length') throw createError({ statusCode: 502, statusMessage: 'A resposta ficou longa demais. Seu rascunho foi preservado; envie os detalhes em partes menores.' })
 
   try {
-    return validateAssistantResult(JSON.parse(content))
+    return validateAssistantResult(parseAssistantContent(content))
   } catch {
     throw createError({ statusCode: 502, statusMessage: 'A resposta da IA não pôde ser validada. Seu rascunho foi preservado.' })
   }
