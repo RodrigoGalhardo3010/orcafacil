@@ -1,3 +1,5 @@
+import { jsonrepair } from 'jsonrepair'
+
 export type QuoteItem = {
   description: string
   quantity: number
@@ -127,12 +129,18 @@ export function parseAssistantContent(content: unknown) {
     .replace(/\s*```$/i, '')
     .trim()
 
+  let parsed: unknown
   try {
-    return JSON.parse(withoutFence)
+    parsed = JSON.parse(withoutFence)
   } catch {
     const start = withoutFence.indexOf('{')
     const end = withoutFence.lastIndexOf('}')
-    if (start >= 0 && end > start) return JSON.parse(withoutFence.slice(start, end + 1))
-    throw new Error('invalid assistant JSON')
+    const candidate = start >= 0
+      ? withoutFence.slice(start, end > start ? end + 1 : undefined)
+      : withoutFence
+    parsed = JSON.parse(jsonrepair(candidate))
   }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid assistant JSON object')
+  return parsed
 }

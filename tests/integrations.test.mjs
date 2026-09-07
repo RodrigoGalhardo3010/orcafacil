@@ -116,3 +116,9 @@ test('quote assistant accepts JSON wrapped in a markdown fence or short preface'
   assert.equal(assistant.parseAssistantContent('Resposta:\n{"ready":true}').ready, true)
   assert.throws(() => assistant.parseAssistantContent('resposta incompleta'))
 })
+
+test('quote assistant repairs common malformed model JSON', () => {
+  const assistant = load('server/utils/quote-assistant.ts')
+  assert.equal(assistant.parseAssistantContent("{'ready': false, 'assistant_message': 'Qual serviço?',}").ready, false)
+  assert.equal(assistant.parseAssistantContent('{"ready":true,"assistant_message":"Pronto"').ready, true)
+})
