@@ -201,3 +201,31 @@ test('AI interview blocks prompt injection before calling DeepSeek', async () =>
   assert.equal(fetchCalls, 0)
   assert.match(result.assistant_message, /somente a elaborar esta proposta comercial/)
 })
+
+test('AI interview safely accepts a plain question while preserving the draft', async () => {
+  const assistant = load('server/utils/quote-assistant.ts')
+  const handler = load('server/api/ai/quote-interview.post.ts', {
+    defineEventHandler: handler => handler,
+    requireUser: async () => ({ id: 'unit-test-user' }),
+    readBody: async () => ({
+      messages: [{ role: 'user', content: 'Instalação em residência.' }],
+      draft: { service_area: 'climatizacao', client_name: 'Cliente Teste' }
+    }),
+    useRuntimeConfig: () => ({ deepseekApiKey: 'test-key', deepseekModel: 'deepseek-v4-flash' }),
+    getRuntimeEnv: (_event, _name, fallback) => fallback,
+    fetch: async () => ({
+      ok: true,
+      json: async () => ({
+        status: 'completed',
+        output: [{ type: 'message', content: [{ type: 'output_text', text: 'Qual é a distância entre as unidades interna e externa?' }] }]
+      })
+    }),
+    AbortSignal,
+    ...assistant
+  }).default
+
+  const result = await handler({})
+  assert.equal(result.draft.client_name, 'Cliente Teste')
+  assert.match(result.assistant_message, /distância entre as unidades/)
+  assert.match(result.assistant_message, /Ex\.:/)
+})

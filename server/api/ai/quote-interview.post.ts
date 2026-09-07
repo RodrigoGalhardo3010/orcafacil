@@ -119,6 +119,19 @@ export default defineEventHandler(async (event) => {
       return { result: validateAssistantResult(parseAssistantContent(content)), failure: '' }
     } catch {
       const raw = typeof content === 'string' ? content.trim() : ''
+      const safePlainQuestion = raw.length > 0
+        && raw.length <= 600
+        && raw.includes('?')
+        && !/[<>{}`]/.test(raw)
+        && !/https?:\/\//i.test(raw)
+        && !isQuotePromptInjection(raw)
+      if (safePlainQuestion) {
+        return {
+          result: validateAssistantResult({ draft: currentDraft, assistant_message: raw }),
+          failure: ''
+        }
+      }
+
       const first = raw ? raw.charCodeAt(0) : 0
       const last = raw ? raw.charCodeAt(raw.length - 1) : 0
       const marker = raw.includes('"draft"') ? 'd' : 'n'
