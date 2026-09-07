@@ -123,6 +123,7 @@ test('quote assistant repairs common malformed model JSON', () => {
   assert.equal(assistant.parseAssistantContent('{"ready":true,"assistant_message":"Pronto"').ready, true)
   assert.equal(assistant.parseAssistantContent({ ready: true }).ready, true)
   assert.equal(assistant.parseAssistantContent([{ type: 'text', text: '{"ready":false}' }]).ready, false)
+  assert.equal(assistant.parseAssistantContent(JSON.stringify('{"ready":true}')).ready, true)
 })
 
 test('quote assistant adds examples to every pending question', () => {

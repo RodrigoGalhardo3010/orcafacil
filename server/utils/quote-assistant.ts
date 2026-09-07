@@ -211,16 +211,25 @@ export function parseAssistantContent(content: unknown) {
     .replace(/\s*```$/i, '')
     .trim()
 
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(withoutFence)
-  } catch {
-    const start = withoutFence.indexOf('{')
-    const end = withoutFence.lastIndexOf('}')
-    const candidate = start >= 0
-      ? withoutFence.slice(start, end > start ? end + 1 : undefined)
-      : withoutFence
-    parsed = JSON.parse(jsonrepair(candidate))
+  function parseJsonText(value: string) {
+    try {
+      return JSON.parse(value)
+    } catch {
+      const start = value.indexOf('{')
+      const end = value.lastIndexOf('}')
+      const candidate = start >= 0
+        ? value.slice(start, end > start ? end + 1 : undefined)
+        : value
+      return JSON.parse(jsonrepair(candidate))
+    }
+  }
+
+  let parsed: unknown = parseJsonText(withoutFence)
+  for (let depth = 0; depth < 2 && typeof parsed === 'string'; depth++) {
+    const nested = parsed.trim()
+    const unwrapped = parseJsonText(nested)
+    if (unwrapped === parsed) break
+    parsed = unwrapped
   }
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid assistant JSON object')
