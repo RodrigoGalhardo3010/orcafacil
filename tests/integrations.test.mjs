@@ -121,4 +121,6 @@ test('quote assistant repairs common malformed model JSON', () => {
   const assistant = load('server/utils/quote-assistant.ts')
   assert.equal(assistant.parseAssistantContent("{'ready': false, 'assistant_message': 'Qual serviço?',}").ready, false)
   assert.equal(assistant.parseAssistantContent('{"ready":true,"assistant_message":"Pronto"').ready, true)
+  assert.equal(assistant.parseAssistantContent({ ready: true }).ready, true)
+  assert.equal(assistant.parseAssistantContent([{ type: 'text', text: '{"ready":false}' }]).ready, false)
 })

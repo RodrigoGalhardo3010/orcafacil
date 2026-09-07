@@ -26,6 +26,12 @@ export default defineEventHandler(async (event) => {
   ]
 
   async function requestAssistant(extraInstruction = '') {
+    const outboundMessages = extraInstruction
+      ? requestMessages.map((message, index) => index === 0
+          ? { ...message, content: `${message.content}\n\n${extraInstruction}` }
+          : message)
+      : requestMessages
+
     return await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -36,9 +42,7 @@ export default defineEventHandler(async (event) => {
       max_tokens: 2200,
       response_format: { type: 'json_object' },
       user_id: user.id,
-      messages: extraInstruction
-        ? [...requestMessages, { role: 'system', content: extraInstruction }]
-        : requestMessages
+      messages: outboundMessages
       }),
       signal: AbortSignal.timeout(25000)
     }).catch(() => null)

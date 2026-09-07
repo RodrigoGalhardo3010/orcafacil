@@ -121,6 +121,15 @@ export function validateAssistantResult(value: any): QuoteAssistantResult {
 }
 
 export function parseAssistantContent(content: unknown) {
+  if (content && typeof content === 'object' && !Array.isArray(content)) return content
+
+  if (Array.isArray(content)) {
+    content = content.map((part: any) => {
+      if (typeof part === 'string') return part
+      return typeof part?.text === 'string' ? part.text : (typeof part?.content === 'string' ? part.content : '')
+    }).join('')
+  }
+
   const raw = String(content || '').trim()
   if (!raw) throw new Error('empty assistant response')
 
