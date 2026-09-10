@@ -9,6 +9,7 @@ export default defineNuxtConfig({
     supabaseServiceRoleKey: '',
     mercadoPagoAccessToken: '',
     mercadoPagoWebhookSecret: '',
+    mercadoPagoPayerEmailOverride: '',
     resendApiKey: '',
     resendFromEmail: 'OrçaFácil <onboarding@resend.dev>',
     deepseekApiKey: '',

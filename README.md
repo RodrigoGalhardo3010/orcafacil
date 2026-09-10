@@ -46,8 +46,9 @@ Configure os secrets no Cloudflare antes do deploy produtivo.
 - registro de visualização sem armazenar IP puro;
 - aceite/recusa com nome/e-mail opcional;
 - e-mails via Resend;
-- assinatura recorrente Pro R$ 39,90 via Mercado Pago;
-- webhook + sincronização manual de assinatura;
+- plano Essencial de R$ 19,90 com 25 envios/mês e Pro de R$ 39,90 com envios ilimitados;
+- assinatura recorrente, conciliação de mensalidades, troca de plano e cancelamento via Mercado Pago;
+- webhook assinado + sincronização manual de assinatura;
 - migrations, documentação, marketing e checklist de lançamento.
 
 ## Antes de produção

@@ -5,12 +5,18 @@ export default defineEventHandler(async (event) => {
   const { proposal, items } = await getProposalForOwner(event, id, user.id)
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
 
-  if (profile?.plan !== 'pro' && !proposal.sent_at) {
+  const plan = getPlan(profile?.plan)
+  if (plan.monthlyProposalLimit !== null && !proposal.sent_at) {
     const start = new Date()
     start.setUTCDate(1)
     start.setUTCHours(0, 0, 0, 0)
     const { count } = await supabase.from('proposals').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('sent_at', start.toISOString())
-    if ((count || 0) >= 3) throw createError({ statusCode: 402, statusMessage: 'Você atingiu o limite de 3 propostas enviadas neste mês. Assine o plano Pro para continuar.' })
+    if ((count || 0) >= plan.monthlyProposalLimit) {
+      throw createError({
+        statusCode: 402,
+        statusMessage: `Você atingiu o limite de ${plan.monthlyProposalLimit} propostas do plano ${plan.name} neste mês. Escolha um plano com mais envios para continuar.`
+      })
+    }
   }
 
   const now = new Date().toISOString()

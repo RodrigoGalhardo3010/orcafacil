@@ -17,11 +17,17 @@
 - Tentar enviar a 4ª: deve retornar cobrança/upgrade.
 - Reenviar proposta já enviada: permitido e não consome novo slot.
 
+## Limites pagos
+- Plano Essencial: permitir 25 propostas novas no mês e bloquear a 26ª.
+- Plano Pro: não impor limite mensal.
+- Trocar entre Essencial e Pro e confirmar preço, limite e identificação do plano.
+
 ## Billing
 - Criar checkout pending.
 - Concluir com conta de teste do Mercado Pago.
 - Voltar ao dashboard e sincronizar.
-- Confirmar `profiles.plan = pro` quando `preapproval.status = authorized`.
+- Confirmar `profiles.plan = essencial` para R$ 19,90 e `profiles.plan = pro` para R$ 39,90 quando `preapproval.status = authorized`.
+- Confirmar registro de cada mensalidade em `subscription_payments` sem duplicar notificações repetidas.
 - Cancelar assinatura e confirmar downgrade após webhook/sync.
 
 ## Segurança

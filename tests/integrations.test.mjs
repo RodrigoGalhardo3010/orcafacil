@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { createHmac, webcrypto } from 'node:crypto'
 import vm from 'node:vm'
 import ts from 'typescript'
 import { PDFDocument } from 'pdf-lib'
@@ -35,6 +36,7 @@ for (const secret of ['', 'unit-test-secret']) {
       readBody: async () => ({ type: 'subscription_preapproval', data: { id: '123' } }),
       getQuery: () => ({}), getHeader: () => '',
       useRuntimeConfig: () => ({ mercadoPagoWebhookSecret: secret }),
+      getRuntimeEnv: (_event, _name, fallback) => fallback,
       mercadoPagoRequest: async () => { billingCalls++; return {} }
     }).default
     await assert.rejects(handler({}), error => error.statusCode === (secret ? 401 : 503))
@@ -67,6 +69,144 @@ test('email sends escaped HTML to Resend and propagates provider failure', async
   assert.equal(payload.attachments[0].content, 'JVBERg==')
   succeed = false
   await assert.rejects(email.sendOwnerResponseEmail({}, 'test@example.com', 'Client', 'Title', 'accepted'), error => error.statusCode === 502)
+})
+
+test('plans enforce the commercial limits and map subscription amounts', () => {
+  const plans = load('server/utils/plans.ts')
+  assert.equal(plans.getPlan('free').monthlyProposalLimit, 3)
+  assert.equal(plans.getPlan('essencial').monthlyProposalLimit, 25)
+  assert.equal(plans.getPlan('pro').monthlyProposalLimit, null)
+  assert.equal(plans.paidPlanFromAmount(19.90), 'essencial')
+  assert.equal(plans.paidPlanFromAmount(39.90), 'pro')
+  assert.equal(plans.paidPlanFromAmount(29.90), null)
+  assert.equal(plans.planRemovesBranding('essencial'), true)
+  assert.equal(plans.isPaidPlanId('free'), false)
+})
+
+test('billing releases a plan only for an approved BRL payment with the exact price', () => {
+  const plans = load('server/utils/plans.ts')
+  const billing = load('server/utils/billing.ts', plans)
+  const valid = {
+    preapproval_id: 'subscription-1', currency_id: 'BRL', transaction_amount: 19.90,
+    payment: { id: 123, status: 'approved', status_detail: 'accredited' }
+  }
+
+  assert.equal(billing.isApprovedAuthorizedPayment(valid, 'essencial'), true)
+  assert.equal(billing.isApprovedAuthorizedPayment({ ...valid, transaction_amount: 0.01 }, 'essencial'), false)
+  assert.equal(billing.isApprovedAuthorizedPayment({ ...valid, currency_id: 'USD' }, 'essencial'), false)
+  assert.equal(billing.isApprovedAuthorizedPayment({ ...valid, payment: { status: 'rejected' } }, 'essencial'), false)
+  assert.equal(billing.isApprovedAuthorizedPayment({ ...valid, preapproval_id: '' }, 'essencial'), false)
+})
+
+test('checkout fixes the Essencial price on the server', async () => {
+  let providerPayload
+  let storedSubscription
+  const supabase = {
+    from(table) {
+      const builder = {
+        select() { return builder },
+        eq() { return builder },
+        async single() { return { data: table === 'profiles' ? { subscription_id: null, plan: 'free', plan_status: null } : null } },
+        async maybeSingle() { return { data: null } },
+        async upsert(value) { if (table === 'subscriptions') storedSubscription = value; return { error: null } },
+        update() { return builder }
+      }
+      return builder
+    }
+  }
+  const plans = load('server/utils/plans.ts')
+  const handler = load('server/api/billing/checkout.post.ts', {
+    defineEventHandler: handler => handler,
+    requireUser: async () => ({ id: '11111111-1111-4111-8111-111111111111', email: 'cliente@example.com' }),
+    readBody: async () => ({ plan: 'essencial', amount: 0.01 }),
+    useRuntimeConfig: () => ({ public: { siteUrl: 'http://localhost:3000' } }),
+    getRuntimeEnv: (_event, _name, fallback) => fallback,
+    getAdminClient: () => supabase,
+    mercadoPagoRequest: async (_event, path, options) => {
+      assert.equal(path, '/preapproval')
+      providerPayload = JSON.parse(options.body)
+      return { id: 'subscription-1', status: 'pending', init_point: 'https://example.com/checkout' }
+    },
+    crypto: webcrypto,
+    ...plans
+  }).default
+
+  const result = await handler({})
+  assert.equal(providerPayload.auto_recurring.transaction_amount, 19.90)
+  assert.equal(providerPayload.payer_email, 'cliente@example.com')
+  assert.equal(providerPayload.back_url, 'http://localhost:3000/dashboard/billing-return')
+  assert.equal(storedSubscription.plan, 'essencial')
+  assert.equal(storedSubscription.amount, 19.90)
+  assert.equal(result.checkoutUrl, 'https://example.com/checkout')
+})
+
+test('checkout uses a Mercado Pago test buyer only on staging', async () => {
+  let providerPayload
+  const supabase = {
+    from() {
+      const builder = {
+        select() { return builder },
+        eq() { return builder },
+        async single() { return { data: { subscription_id: null, plan: 'free', plan_status: null } } },
+        async upsert() { return { error: null } },
+        update() { return builder }
+      }
+      return builder
+    }
+  }
+  const plans = load('server/utils/plans.ts')
+  const handler = load('server/api/billing/checkout.post.ts', {
+    defineEventHandler: handler => handler,
+    requireUser: async () => ({ id: '11111111-1111-4111-8111-111111111111', email: 'cliente@example.com' }),
+    readBody: async () => ({ plan: 'essencial' }),
+    useRuntimeConfig: () => ({ mercadoPagoPayerEmailOverride: '', public: { siteUrl: 'http://localhost:3000' } }),
+    getRuntimeEnv: (_event, name, fallback) => name === 'NUXT_MERCADO_PAGO_PAYER_EMAIL_OVERRIDE' ? 'TESTUSER123@testuser.com' : name === 'NUXT_PUBLIC_SITE_URL' ? 'https://orcafacil-staging.example.com' : fallback,
+    getAdminClient: () => supabase,
+    mercadoPagoRequest: async (_event, _path, options) => {
+      providerPayload = JSON.parse(options.body)
+      return { id: 'subscription-test', status: 'pending', init_point: 'https://example.com/checkout' }
+    },
+    crypto: webcrypto,
+    ...plans
+  }).default
+
+  await handler({})
+  assert.equal(providerPayload.payer_email, 'TESTUSER123@testuser.com')
+})
+
+test('webhook reconciles an authorized subscription payment after validating HMAC', async () => {
+  const secret = 'webhook-test-secret'
+  const dataId = 'invoice-1'
+  const requestId = 'request-1'
+  const ts = '1700000000'
+  const signature = createHmac('sha256', secret).update(`id:${dataId};request-id:${requestId};ts:${ts};`).digest('hex')
+  const paths = []
+  let recorded = false
+  let applied = false
+  const handler = load('server/api/billing/webhook.post.ts', {
+    defineEventHandler: handler => handler,
+    readBody: async () => ({ type: 'subscription_authorized_payment', data: { id: dataId } }),
+    getQuery: () => ({}),
+    getHeader: (_event, name) => name === 'x-signature' ? `ts=${ts},v1=${signature}` : requestId,
+    useRuntimeConfig: () => ({ mercadoPagoWebhookSecret: secret }),
+    getRuntimeEnv: (_event, _name, fallback) => fallback,
+    mercadoPagoRequest: async (_event, path) => {
+      paths.push(path)
+      return path.startsWith('/authorized_payments/')
+        ? { id: dataId, preapproval_id: 'subscription-1', status: 'processed' }
+        : { id: 'subscription-1', external_reference: '11111111-1111-4111-8111-111111111111', status: 'authorized' }
+    },
+    recordAuthorizedPayment: async () => { recorded = true },
+    applySubscriptionStatus: async () => { applied = true },
+    reconcileAuthorizedPayments: async () => false,
+    crypto: webcrypto,
+    TextEncoder
+  }).default
+
+  assert.equal((await handler({})).ok, true)
+  assert.deepEqual(paths, ['/authorized_payments/invoice-1', '/preapproval/subscription-1'])
+  assert.equal(recorded, true)
+  assert.equal(applied, true)
 })
 
 test('unconfigured email does not call the provider', async () => {

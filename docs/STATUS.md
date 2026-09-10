@@ -1,41 +1,53 @@
-# Estado verificado — 05/09/2026
+# Estado verificado — 07/09/2026
 
-## Escopo consolidado
+## Produto
 
-OrçaFácil é um MVP de propostas comerciais para pequenos prestadores, com foco inicial em instaladores de ar-condicionado. Fluxo: cadastro, rascunho com itens, envio de link, visualização, aceite/recusa e acompanhamento. O pacote adota 3 envios gratuitos por mês e Pro de R$ 39,90/mês; as sugestões anteriores de outros planos não são funcionalidades contratadas ou validadas.
+O OrçaFácil está publicado em Cloudflare Workers e possui cadastro/login, dashboard, entrevista de proposta com IA, edição, PDF, e-mail, compartilhamento por WhatsApp, link público e aceite/recusa. Supabase mantém autenticação e dados; Resend envia e-mails; DeepSeek atende a entrevista comercial.
 
-Stack: Nuxt 4, Cloudflare Workers, Supabase Auth/PostgreSQL, Mercado Pago Assinaturas e Resend. IA, equipes e PDF gerado no servidor ficam fora do MVP atual. Materiais de marketing e planilhas estão incluídos; nenhuma campanha foi executada nesta revisão.
+Planos preparados no código:
 
-## Origem e revisão
+- Grátis: 3 propostas enviadas por mês;
+- Essencial: R$ 19,90 por mês e até 25 propostas;
+- Pro: R$ 39,90 por mês e propostas ilimitadas.
 
-- Pacote original: `orcafacil-mvp.zip`, 52.204 bytes.
-- SHA-256: `b3f3b76226f704cedced73a03d81a43e17229decd7a87e8c93fc0d67955a9475`.
-- Histórico textual disponível da conversa “Site OrcaFacil” recuperado; afirmações anteriores não foram tratadas como prova de testes.
-- Repositório remoto vazio na revisão inicial, sem README ou histórico a preservar; README do pacote mantido e atualizado.
-- Dependências fixadas e lockfile incluído; configuração TypeScript e ferramenta de verificação adicionadas.
-- Build para Cloudflare corrigido: e-mails HTML usam a API REST do Resend, evitando a dependência opcional de React do SDK. Referência: https://resend.com/docs/api-reference/emails/send-email.
-- Webhook agora retorna 503 quando seu segredo não está configurado e rejeita assinaturas inválidas.
-- Scanner de credenciais ampliado, inclusive para `.env.example`, JWTs, chaves privadas e arquivos indevidamente adicionados ao Git. O scanner não substitui revisão humana nem garante ausência de todo segredo possível.
+## Cobrança
 
-## Supabase conferido, sem alterações remotas nesta revisão
+Há uma implementação local, ainda sem commit/publicação, de seleção de planos, preço definido no servidor, troca, cancelamento e webhook assinado. A proteção contra duplicidade é parcial: um checkout pendente pode ser reutilizado, mas requisições simultâneas ou falhas entre o provedor e o banco ainda precisam de tratamento. O registro de mensalidades usa uma chave única, mas ainda não determina corretamente o período pago nem a inadimplência.
 
-- Projeto ativo e saudável.
-- Histórico remoto confirma `20260905020917_initial_orcafacil_schema` e `20260905021014_harden_handle_new_user_permissions`.
-- Arquivos locais alinhados a essas versões; a segunda migration estava ausente do ZIP.
-- Advisor de segurança retornou somente avisos informativos de RLS sem policies nas cinco tabelas. Esse é o desenho atual: tabelas acessadas pelo backend, com privilégios diretos revogados para `anon` e `authenticated`.
-- As credenciais do ambiente de execução ainda precisam ser configuradas. Nenhuma credencial real foi adicionada ao código.
+O código atual libera o plano pelo status `authorized` da assinatura. Esse status não comprova recebimento da mensalidade. A confirmação deve consultar o pagamento relacionado à fatura, validar valor, moeda e vínculo e calcular o acesso pelo período pago. Uma fatura `processed` também pode terminar com pagamento recusado. Ver [documentação do Mercado Pago](https://www.mercadopago.com.br/developers/pt/docs/subscriptions/integration-configuration/subscription-no-associated-plan/authorized-payments).
 
-## Bloqueios antes de produção
+A cobrança ainda não está ativa em produção. Faltam a migration `20260907120000_add_essential_plan_and_subscription_payments.sql`, as credenciais de produção `NUXT_MERCADO_PAGO_ACCESS_TOKEN` e `NUXT_MERCADO_PAGO_WEBHOOK_SECRET`, o registro do webhook no Mercado Pago e duas compras reais controladas.
 
-1. Tornar transacionais a edição de proposta/itens e a verificação do limite mensal; hoje requisições simultâneas podem ultrapassar o limite ou deixar dados parciais.
-2. Impedir edição e reenvio que alterem propostas já respondidas; controlar validade e resposta concorrente de forma atômica. A interface também precisa usar o estado confirmado pelo servidor e abortar envio se o salvamento falhar.
-3. Concluir robustez de cobrança: idempotência de checkout, tratamento de falhas de persistência, múltiplas assinaturas e ordenação de eventos; executar testes em sandbox do provedor.
-4. Configurar ambiente de homologação, URLs de Auth, remetente de e-mail verificado e secrets. Testar cadastro, sessão, recuperação de senha, isolamento entre usuários e o fluxo completo de proposta com serviços reais.
-5. Configurar hospedagem e domínio, proteção contra abuso, monitoramento e recuperação. Validar termos, privacidade e contato do operador antes de receber usuários reais.
+O dinheiro das assinaturas entra na conta Mercado Pago associada ao Access Token de produção. Cloudflare e Supabase não recebem nem custodiam o pagamento.
 
-O build aprovado não equivale a aprovação de produção. A publicação do código no GitHub é a primeira etapa; o deploy e as configurações serão conduzidos com o usuário, um passo por vez.
+## Validação local
 
-## Verificação reproduzível
+Em 07/09/2026 passaram:
 
-`npm ci`, `npm run typecheck`, `npm test`, `npm run build`, `npm run check:secrets`.
-Os testes de integração usam respostas simuladas; não enviam e-mails nem efetuam cobranças. A auditoria de dependências de produção realizada nesta revisão não retornou vulnerabilidades conhecidas.
+- 18 testes automatizados na rodada anterior, com respostas simuladas;
+- verificação TypeScript;
+- build Nuxt para Cloudflare Workers;
+- scanner de padrões de credenciais, sem segredos encontrados.
+
+Os testes de cobrança usam respostas controladas e não movimentam dinheiro.
+
+## Conferência remota e revisão de produção
+
+- Supabase respondeu como `ACTIVE_HEALTHY`.
+- Apenas as duas migrations iniciais constam no histórico remoto.
+- As cinco tabelas públicas têm RLS habilitada e nenhum privilégio direto de leitura/escrita para `anon` ou `authenticated`, confirmado por consulta. O isolamento entre contas ainda precisa de testes das APIs, pois o servidor usa credenciais privilegiadas.
+- O Security Advisor apontou avisos informativos de RLS sem policies, compatíveis com esse modelo de acesso, e proteção contra senhas vazadas desativada. Essa proteção depende de plano Supabase Pro ou superior: [documentação](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+- A revisão local encontrou contagem mensal sem transação, edição e reenvio permitidos após resposta, aceite/recusa sem atualização condicional e ausência de limite por conta nas chamadas de IA. São pendências anteriores ao lançamento pago.
+- Backup restaurável, ambiente de teste separado, domínio e remetente de autenticação próprios, limites de custos e recuperação de incidentes ainda precisam ser comprovados. Logs habilitados no Worker não comprovam alertas operacionais configurados.
+
+## Pendências para lançamento comercial
+
+1. preparar ambiente de teste e backup com restauração verificada;
+2. concluir concorrência, persistência e acesso por período pago na cobrança, além de integridade das propostas e proteção contra abuso;
+3. validar migrations, credenciais e webhooks em teste antes de configurar cobranças reais;
+4. testar compra, renovação, recusa, troca, cancelamento, estorno e notificações repetidas ou atrasadas;
+5. configurar `NUXT_EVENT_HASH_SECRET`, monitoramento, alertas, domínio e remetentes próprios;
+6. definir política comercial, suporte, orçamento operacional e atualizar Termos/Privacidade;
+7. testar restauração, reversão de deploy, carga e dispositivos móveis; iniciar beta assistido antes de tráfego pago.
+
+O plano de lançamento e escala está em `docs/LAUNCH_AND_SCALE.md`.

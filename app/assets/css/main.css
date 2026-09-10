@@ -93,6 +93,8 @@ textarea { resize: vertical; }
 .upgrade-banner { padding: 20px 22px; display: flex; justify-content: space-between; gap: 20px; align-items: center; margin-bottom: 18px; background: #f0fdf4; border-color: #bbf7d0; }
 .upgrade-banner div { display: flex; flex-direction: column; }
 .upgrade-banner span { color: #475569; font-size: 13px; }
+.upgrade-banner .billing-actions { flex-direction: row; align-items: center; gap: 10px; flex-wrap: wrap; }
+.billing-cancel { color: #b91c1c; padding: 8px; }
 .empty { padding: 56px 24px; text-align: center; color: var(--muted); }
 .empty h3 { color: var(--ink); }
 .table-card { overflow: hidden; }

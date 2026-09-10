@@ -8,12 +8,14 @@ export default defineEventHandler(async (event) => {
   start.setUTCDate(1)
   start.setUTCHours(0, 0, 0, 0)
   const { count } = await supabase.from('proposals').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('sent_at', start.toISOString())
+  const plan = getPlan(profile?.plan)
 
   return {
     profile,
     usage: {
       sentThisMonth: count || 0,
-      limit: profile?.plan === 'pro' ? null : 3
+      limit: plan.monthlyProposalLimit,
+      remaining: plan.monthlyProposalLimit === null ? null : Math.max(0, plan.monthlyProposalLimit - (count || 0))
     },
     email: user.email
   }

@@ -1,22 +1,23 @@
 # Plano de marketing e aquisição — MVP
 
 ## Posicionamento inicial
-Não vender "software de propostas". Vender:
+Não vender apenas "software de propostas". Vender:
 
-> **Orçamentos profissionais para instaladores de ar-condicionado, enviados pelo WhatsApp em minutos.**
+> **Transforme uma conversa em um orçamento profissional com IA, PDF e aceite pelo link.**
 
-O primeiro nicho deve ser mantido por 30 dias para gerar aprendizado comparável.
+Na prospecção, adaptar essa promessa à profissão do contato. Climatização continua como primeiro grupo de validação e apenas um segundo grupo deve ser comparado no primeiro mês.
 
 ## ICP inicial
 - instalador autônomo ou pequena empresa de climatização;
 - 2 a 15 instalações/manutenções por semana;
 - recebe pedidos pelo WhatsApp;
 - hoje responde com texto, imagem, PDF manual ou planilha;
-- ticket de serviço suficiente para R$ 39,90/mês ser irrelevante diante de uma única venda.
+- ticket de serviço suficiente para que uma venda cubra vários meses de assinatura.
 
 ## Oferta
 **Grátis:** 3 propostas enviadas/mês.
-**Pro:** R$ 39,90/mês, ilimitado, sem marca e com e-mail/transações.
+**Essencial:** R$ 19,90/mês, 25 propostas e sem marca.
+**Pro:** R$ 39,90/mês, ilimitado e sem marca.
 
 Não oferecer desconto anual antes de 20 clientes pagantes.
 
@@ -27,7 +28,7 @@ Olá, [nome]. Vi que vocês trabalham com instalação de ar-condicionado. Estou
 Leva cerca de 2 minutos: você coloca serviço, material, preço e prazo, e recebe um link para enviar no WhatsApp. O cliente abre no celular e aceita por ali. Não precisa instalar aplicativo.
 
 ## Mensagem de conversão após uso
-Vocês já enviaram [X] propostas pelo OrçaFácil. Quer continuar sem limite e sem a marca no rodapé por R$ 39,90/mês?
+Vocês já enviaram [X] propostas pelo OrçaFácil. O Essencial libera até 25 envios e remove a marca por R$ 19,90/mês. Se o volume for maior, o Pro é ilimitado por R$ 39,90/mês.
 
 ## Plano de 30 dias
 ### Dias 1-3
@@ -65,7 +66,7 @@ Vocês já enviaram [X] propostas pelo OrçaFácil. Quer continuar sem limite e 
 
 **Investigar/pivotar oferta:** usuários criam conta, mas não enviam proposta.
 
-**Abandonar ou trocar nicho:** 100 abordagens qualificadas + demos reais e ninguém aceita pagar R$ 39,90.
+**Abandonar ou trocar nicho:** 100 abordagens qualificadas + demos reais e ninguém aceita pagar nenhum dos planos.
 
 ## Growth loop
 No plano grátis, a proposta pública termina com "Proposta criada com OrçaFácil". Cada proposta enviada distribui o produto a um potencial prestador de serviço ou comprador B2B.

@@ -15,13 +15,14 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const query = getQuery(event)
   const config = useRuntimeConfig(event)
-  if (!config.mercadoPagoWebhookSecret) {
+  const webhookSecret = getRuntimeEnv(event, 'NUXT_MERCADO_PAGO_WEBHOOK_SECRET', config.mercadoPagoWebhookSecret)
+  if (!webhookSecret) {
     throw createError({ statusCode: 503, statusMessage: 'Webhook ainda não configurado.' })
   }
-  const dataId = String(query['data.id'] || body?.data?.id || '')
+  const dataId = String(query['data.id'] || body?.data?.id || '').toLowerCase()
 
   try {
-    if (!await validSignature(getHeader(event, 'x-signature') || '', getHeader(event, 'x-request-id') || '', dataId, config.mercadoPagoWebhookSecret)) {
+    if (!await validSignature(getHeader(event, 'x-signature') || '', getHeader(event, 'x-request-id') || '', dataId, webhookSecret)) {
       throw new Error('Invalid signature')
     }
   } catch {
@@ -32,6 +33,18 @@ export default defineEventHandler(async (event) => {
   if (topic === 'subscription_preapproval' && dataId) {
     const subscription = await mercadoPagoRequest(event, `/preapproval/${encodeURIComponent(dataId)}`)
     await applySubscriptionStatus(event, subscription)
+    if (subscription.status === 'authorized') {
+      await reconcileAuthorizedPayments(event, String(subscription.id))
+    }
+  }
+
+  if (topic === 'subscription_authorized_payment' && dataId) {
+    const payment = await mercadoPagoRequest(event, `/authorized_payments/${encodeURIComponent(dataId)}`)
+    if (payment.preapproval_id) {
+      const subscription = await mercadoPagoRequest(event, `/preapproval/${encodeURIComponent(payment.preapproval_id)}`)
+      await applySubscriptionStatus(event, subscription)
+      await recordAuthorizedPayment(event, payment)
+    }
   }
 
   return { ok: true }

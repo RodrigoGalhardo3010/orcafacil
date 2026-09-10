@@ -10,6 +10,12 @@ const loading = ref(false)
 const message = ref('')
 const errorMessage = ref('')
 
+function dashboardTarget() {
+  return route.query.plan === 'essencial' || route.query.plan === 'pro'
+    ? `/dashboard?plan=${route.query.plan}`
+    : '/dashboard'
+}
+
 async function submit() {
   loading.value = true
   message.value = ''
@@ -28,12 +34,12 @@ async function submit() {
         }
       })
       if (error) throw error
-      if (data.session) await navigateTo('/dashboard')
+      if (data.session) await navigateTo(dashboardTarget())
       else message.value = 'Conta criada. Confira seu e-mail para confirmar o cadastro.'
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email: email.value, password: password.value })
       if (error) throw error
-      await navigateTo('/dashboard')
+      await navigateTo(dashboardTarget())
     }
   } catch (error: any) {
     errorMessage.value = error?.message || 'Não foi possível concluir. Tente novamente.'

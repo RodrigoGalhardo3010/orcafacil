@@ -12,6 +12,7 @@
 - [ ] E-mail de resposta ao vendedor
 - [ ] Checkout Mercado Pago
 - [ ] Webhook de assinatura
+- [ ] Webhook de mensalidade e conciliação
 - [ ] Upgrade e downgrade sincronizados
 
 ## Segurança
@@ -45,6 +46,7 @@
 - [ ] domínio + SSL
 - [ ] URLs de Auth atualizadas
 - [ ] webhook de produção atualizado
+- [ ] compra real de R$ 19,90 testada em conta controlada
 - [ ] compra real de R$ 39,90 testada em conta controlada
 - [ ] cancelamento testado
 - [ ] mobile testado em Android e iPhone

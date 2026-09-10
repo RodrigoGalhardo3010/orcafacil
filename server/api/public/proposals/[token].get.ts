@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
       status: proposal.status,
       company_name: profile?.company_name || 'Proposta comercial',
       logo_url: profile?.logo_url || null,
-      branded: profile?.plan !== 'pro',
+      branded: !planRemovesBranding(profile?.plan),
       items: items || []
     }
   }
