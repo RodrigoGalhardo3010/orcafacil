@@ -14,6 +14,22 @@ O staging pode continuar nos planos gratuitos. A produção comercial deve come�
 
 Produção e staging devem usar projetos, credenciais e webhooks separados. Antes de contratar Supabase Pro, conferir se os dois projetos estão na mesma organização, pois o plano vale para a organização e cada projeto possui compute próprio.
 
+## Estado atual verificado
+
+A organização Supabase RodrigoGalhardo3010's Org contém dois projetos nano:
+
+- orcafacil-staging;
+- RodrigoGalhardo3010's Project, usado em produção.
+
+Uso observado em 10/09/2026:
+
+- banco: 26 MB de 500 MB;
+- usuários ativos no mês: 2 de 50.000;
+- egress: 0,00 GB de 5 GB;
+- arquivos: 0 GB de 1 GB.
+
+Decisão para ganhar velocidade: manter os dois projetos na mesma organização ao lançar, aceitar o compute adicional do staging e reservar cerca de US$ 35/mês para o Supabase. Depois da estabilização, avaliar mover ou recriar o staging em uma organização gratuita separada. Uma transferência antes do lançamento adicionaria risco e não resolve uma limitação de capacidade atual.
+
 ## Orçamento inicial de infraestrutura
 
 Reserva mensal sugerida para o beta:
