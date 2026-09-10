@@ -14,6 +14,50 @@ O staging pode continuar nos planos gratuitos. A produção comercial deve come�
 
 Produção e staging devem usar projetos, credenciais e webhooks separados. Antes de contratar Supabase Pro, conferir se os dois projetos estão na mesma organização, pois o plano vale para a organização e cada projeto possui compute próprio.
 
+## Papel da VPS Hostinger
+
+A VPS existente deve entrar como capacidade complementar. Não é recomendável mover, antes do lançamento, o Nuxt, o banco, a autenticação e os webhooks de pagamento para uma única máquina. Essa mudança aumenta o tempo até a produção e transforma a VPS em um ponto único de falha, além de transferir para a operação do OrçaFácil a responsabilidade por atualizações do sistema, firewall, TLS, monitoramento, backup, restauração e resposta a incidentes.
+
+Arquitetura recomendada para o lançamento:
+
+- Cloudflare continua na borda e executa o site, a API e os webhooks críticos;
+- Supabase gerenciado continua responsável por autenticação e Postgres;
+- Resend, DeepSeek e Mercado Pago continuam como serviços gerenciados;
+- a VPS fica preparada para tarefas assíncronas quando o volume justificar.
+
+Primeiros usos adequados para a VPS:
+
+- consumidores de filas para WhatsApp, PDF e e-mail;
+- tarefas agendadas de conciliação e manutenção;
+- monitoramento externo e exportações de backup criptografadas;
+- processamento pesado que ultrapasse os limites de CPU do Cloudflare.
+
+O sistema web e a confirmação de pagamentos devem continuar funcionando se a VPS ficar indisponível. Cada tarefa enviada à VPS precisa ser idempotente, persistida em fila, ter retentativa e poder ser retomada sem duplicar e-mail, PDF, proposta ou cobrança.
+
+Antes de colocar qualquer carga real na VPS:
+
+1. identificar plano, CPU, memória, disco, sistema operacional e serviços já instalados;
+2. atualizar o sistema e usar acesso SSH por chave, com login por senha e acesso direto de root desativados;
+3. restringir o firewall aos serviços necessários e limitar o SSH por origem quando viável;
+4. executar aplicações com usuário sem privilégios e isolamento por contêiner;
+5. enviar backups para outro provedor e testar a restauração;
+6. monitorar CPU, memória, disco, fila, reinícios, certificados e disponibilidade;
+7. manter segredos fora das imagens, do repositório e dos logs.
+
+### Capacidade e expansão da VPS
+
+A Hostinger oferece aumento vertical por faixas KVM. Na consulta de 10/09/2026, as configurações publicadas eram:
+
+| Plano | vCPU | RAM | NVMe | Tráfego |
+| --- | ---: | ---: | ---: | ---: |
+| KVM 1 | 1 | 4 GB | 50 GB | 4 TB |
+| KVM 2 | 2 | 8 GB | 100 GB | 8 TB |
+| KVM 4 | 4 | 16 GB | 200 GB | 16 TB |
+
+Os preços promocionais e de renovação variam. O plano e as condições de upgrade da conta devem ser confirmados no hPanel antes da contratação. Aumentar CPU e memória melhora a capacidade, mas não cria alta disponibilidade: uma única VPS continua sendo uma única zona de falha.
+
+Planejar upgrade quando CPU permanecer acima de 60%, memória acima de 70%, disco acima de 70% ou quando a latência da fila ultrapassar o prazo operacional por 15 minutos. Em escala maior, usar pelo menos duas instâncias para os processadores assíncronos e manter banco, arquivos e fila em serviços resistentes à perda de uma máquina.
+
 ## Estado atual verificado
 
 A organização Supabase RodrigoGalhardo3010's Org contém dois projetos nano:
@@ -193,3 +237,7 @@ Se um cliente Pro gerar custo incompatível com R$ 39,90, aplicar a política de
 - [Preços do Resend](https://resend.com/docs/knowledge-base/what-is-resend-pricing)
 - [Cotas e limites do Resend](https://resend.com/docs/knowledge-base/account-quotas-and-limits)
 - [Preços do DeepSeek](https://api-docs.deepseek.com/quick_start/pricing/)
+- [Planos de VPS da Hostinger](https://www.hostinger.com/br/servidor-vps)
+- [Responsabilidades ao hospedar o Supabase por conta própria](https://supabase.com/docs/guides/self-hosting)
+- [Modelo de responsabilidade compartilhada do Supabase](https://supabase.com/docs/guides/deployment/shared-responsibility-model)
+- [Backups do banco no Supabase](https://supabase.com/docs/guides/platform/backups)
