@@ -53,6 +53,9 @@ O primeiro lançamento não depende do chatbot receber pedidos dentro do WhatsAp
 - ativar logs de erro e métricas mínimas do funil;
 - abrir o beta para os primeiros dez usuários acompanhados pessoalmente.
 
+O plano de capacidade, custos e migração dos serviços gratuitos está em
+[SCALING_AND_COSTS.md](SCALING_AND_COSTS.md).
+
 ## Regras para ganhar velocidade
 
 1. Uma etapa por vez, com evidência objetiva de sucesso.
