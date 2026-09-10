@@ -13,18 +13,17 @@ O primeiro lançamento não depende do chatbot receber pedidos dentro do WhatsAp
 - aplicação e banco de homologação separados da produção;
 - cadastro, proposta com IA, PDF, e-mail, WhatsApp por compartilhamento, link público e aceite disponíveis;
 - planos Grátis, Essencial e Pro implementados;
-- compra de teste do Essencial concluída;
+- compra de teste do Essencial concluída, com ativação do limite de 25 propostas;
+- cancelamento de teste concluído, com retorno ao plano Grátis e interrupção das próximas cobranças;
 - webhook de teste protegido por assinatura e validado pelo simulador oficial com HTTP 200;
 - liberação do plano condicionada a pagamento aprovado, moeda BRL e preço exato;
 - 20 testes automatizados e build Cloudflare aprovados;
-- correção publicada no staging, versão `0df7313c-d995-42de-bf0d-86011773d590`.
+- correção de cancelamento publicada no staging, versão `a601e303-8be1-4766-91f0-0d0e158af7c6`.
 
 ## Caminho crítico
 
 ### 1. Fechar a homologação
 
-- executar uma compra limpa do Essencial e confirmar que o plano só ativa após pagamento aprovado;
-- cancelar a assinatura e confirmar retorno ao Grátis;
 - executar uma compra limpa do Pro;
 - testar uma proposta completa no celular: IA, PDF, e-mail, WhatsApp e aceite.
 

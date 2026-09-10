@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const subscription = await mercadoPagoRequest(event, `/preapproval/${encodeURIComponent(profile.subscription_id)}`, {
-    method: 'PUT', body: JSON.stringify({ status: 'canceled' })
+    method: 'PUT', body: JSON.stringify({ status: 'cancelled' })
   })
   await applySubscriptionStatus(event, { ...subscription, external_reference: user.id })
   return { ok: true, status: subscription.status }

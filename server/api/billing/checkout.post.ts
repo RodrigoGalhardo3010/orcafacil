@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
 
     if (current.status === 'pending' || current.status === 'paused') {
       await mercadoPagoRequest(event, `/preapproval/${encodeURIComponent(profile.subscription_id)}`, {
-        method: 'PUT', body: JSON.stringify({ status: 'canceled' })
+        method: 'PUT', body: JSON.stringify({ status: 'cancelled' })
       })
     }
   }
