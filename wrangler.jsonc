@@ -12,7 +12,8 @@
   "vars": {
     "NUXT_PUBLIC_SITE_URL": "https://easybudget.operatehub.cloud",
     "NUXT_PUBLIC_SUPABASE_URL": "https://jobndmsargydskcsvnrk.supabase.co",
-    "NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_DI7tyjzkJmRggpx5uS_eiA_oqHoPd8n"
+    "NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_DI7tyjzkJmRggpx5uS_eiA_oqHoPd8n",
+    "NUXT_RESEND_FROM_EMAIL": "OrçaFácil <propostas@operatehub.cloud>"
   },
   "routes": [
     {
