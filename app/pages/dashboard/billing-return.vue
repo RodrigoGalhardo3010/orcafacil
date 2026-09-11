@@ -10,9 +10,8 @@ onMounted(async () => {
     const result = await request<{ status?: string }>('/api/billing/sync', { method: 'POST' })
     const billing = result.status === 'authorized' ? 'confirmed' : 'pending'
     await navigateTo({ path: '/dashboard', query: { billing } }, { replace: true })
-  } catch {
-    errorMessage.value = 'Não foi possível confirmar o pagamento agora.'
-    await navigateTo({ path: '/dashboard', query: { billing: 'error' } }, { replace: true })
+  } catch (error: any) {
+    errorMessage.value = error?.data?.statusMessage || error?.message || 'Não foi possível confirmar o pagamento agora.'
   }
 })
 </script>

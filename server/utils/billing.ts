@@ -10,8 +10,8 @@ export async function mercadoPagoRequest(event: H3Event, path: string, options: 
   })
   const data = await response.json().catch(() => ({}))
   if (!response.ok) {
-    console.error('Mercado Pago error', response.status)
-    throw createError({ statusCode: 502, statusMessage: 'Falha na comunicação com o Mercado Pago. Tente novamente em instantes.' })
+    console.error('Mercado Pago error', path, response.status, JSON.stringify(data).slice(0, 600))
+    throw createError({ statusCode: 502, statusMessage: `Mercado Pago ${response.status}: ${JSON.stringify(data).slice(0, 300)}` })
   }
   return data as any
 }
@@ -67,16 +67,12 @@ export async function recordAuthorizedPayment(event: H3Event, invoice: any) {
 
 export async function reconcileAuthorizedPayments(event: H3Event, providerSubscriptionId: string) {
   let active = false
-  for (let offset = 0; ; offset += 50) {
-    const result = await mercadoPagoRequest(event,
-      `/authorized_payments/search?preapproval_id=${encodeURIComponent(providerSubscriptionId)}&limit=50&offset=${offset}`)
-    const payments = Array.isArray(result?.results) ? result.results : []
-    for (const payment of payments) {
-      if (String(payment.preapproval_id) !== providerSubscriptionId) continue
-      active = await recordAuthorizedPayment(event, payment) || active
-    }
-    if (payments.length < 50 || offset + payments.length >= Number(result.paging?.total || 0)) break
-    if (offset >= 4950) throw createError({ statusCode: 503, statusMessage: 'A conciliação precisa ser concluída pelo suporte.' })
+  const result = await mercadoPagoRequest(event,
+    `/authorized_payments/search?preapproval_id=${encodeURIComponent(providerSubscriptionId)}`)
+  const payments = Array.isArray(result?.results) ? result.results : []
+  for (const payment of payments) {
+    if (String(payment.preapproval_id) !== providerSubscriptionId) continue
+    active = await recordAuthorizedPayment(event, payment) || active
   }
   return active
 }
