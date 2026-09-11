@@ -10,10 +10,17 @@
     "directory": ".output/public"
   },
   "vars": {
-    "NUXT_PUBLIC_SITE_URL": "https://orcafacil.rrrgalhardo.workers.dev",
+    "NUXT_PUBLIC_SITE_URL": "https://easybudget.operatehub.cloud",
     "NUXT_PUBLIC_SUPABASE_URL": "https://jobndmsargydskcsvnrk.supabase.co",
     "NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_DI7tyjzkJmRggpx5uS_eiA_oqHoPd8n"
   },
+  "routes": [
+    {
+      "pattern": "easybudget.operatehub.cloud",
+      "custom_domain": true
+    }
+  ],
+  "workers_dev": true,
   "observability": {
     "enabled": true
   }
