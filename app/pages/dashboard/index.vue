@@ -26,6 +26,7 @@ const profile = ref<any>(null)
 const usage = ref<any>(null)
 const errorMessage = ref('')
 const billingMessage = ref('')
+const sentMessage = ref('')
 const billingLoading = ref<PaidPlan | 'cancel' | ''>('')
 
 const planName = computed(() => profile.value?.plan === 'pro' ? 'Pro' : profile.value?.plan === 'essencial' ? 'Essencial' : 'Grátis')
@@ -69,6 +70,13 @@ async function load() {
       await router.replace({ query: {} })
     } else if (route.query.billing === 'error') {
       errorMessage.value = 'Não foi possível confirmar o pagamento agora. Tente atualizar a página em instantes.'
+      await router.replace({ query: {} })
+    }
+
+    if (route.query.sent) {
+      if (route.query.sent === 'email') sentMessage.value = 'Proposta enviada com o PDF anexado e o link para aceite.'
+      else if (route.query.sent === 'failed') errorMessage.value = 'Proposta enviada, mas o e-mail não foi entregue. Use o link para compartilhar.'
+      else sentMessage.value = 'Proposta enviada com link de aceite e PDF para compartilhamento.'
       await router.replace({ query: {} })
     }
   } catch (error: any) {
@@ -169,6 +177,7 @@ onMounted(load)
         </div>
       </div>
 
+      <p v-if="sentMessage" class="notice success">{{ sentMessage }}</p>
       <p v-if="billingMessage" class="notice success">{{ billingMessage }}</p>
       <p v-if="errorMessage" class="notice error">{{ errorMessage }}</p>
       <div v-if="loading" class="empty card">Carregando...</div>

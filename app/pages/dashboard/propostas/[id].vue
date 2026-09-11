@@ -60,15 +60,8 @@ async function sendProposal() {
     proposal.value.status = 'sent'
     publicUrl.value = result.publicUrl
     pdfUrl.value = result.pdfUrl
-    if (result.emailSent) {
-      successMessage.value = 'E-mail enviado com o PDF anexado e o link para aceite.'
-    } else if (!proposal.value.client_email) {
-      successMessage.value = 'Proposta liberada com link de aceite e PDF para compartilhamento.'
-    } else {
-      errorMessage.value = result.emailStatus === 'resend_not_configured'
-        ? 'Proposta liberada, mas o serviço de e-mail ainda não está configurado.'
-        : 'Proposta liberada, mas o e-mail não foi entregue. Use o link enquanto verificamos o remetente.'
-    }
+    const sent = result.emailSent ? 'email' : (proposal.value.client_email ? 'failed' : 'ok')
+    await navigateTo({ path: '/dashboard', query: { sent } })
   } catch (error: any) {
     errorMessage.value = error?.data?.statusMessage || error?.message || 'Erro ao enviar.'
   } finally { sending.value = false }
