@@ -1,9 +1,5 @@
 import { billingOffer, isBillingCycle } from '~~/shared/billing-catalog'
 
-function checkoutLink(subscription: any, isNonProductionSite: boolean) {
-  return isNonProductionSite ? (subscription.sandbox_init_point || subscription.init_point) : subscription.init_point
-}
-
 export default defineEventHandler(async (event) => {
   const user = await requireUser(event)
   if (!user.email) throw createError({ statusCode: 400, statusMessage: 'Sua conta precisa ter um e-mail válido.' })
@@ -47,9 +43,9 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 409, statusMessage: 'Você já possui uma assinatura em renovação. Atualize a confirmação do pagamento ou cancele a renovação antes de contratar outra.' })
     }
 
-    if (current.status === 'pending' && storedSubscription?.plan === planId && storedSubscription?.billing_cycle === cycle && checkoutLink(current, isNonProductionSite)) {
+    if (current.status === 'pending' && storedSubscription?.plan === planId && storedSubscription?.billing_cycle === cycle && current.init_point) {
       completed = true
-      return { checkoutUrl: checkoutLink(current, isNonProductionSite), subscriptionId: current.id, status: 'pending' }
+      return { checkoutUrl: current.init_point, subscriptionId: current.id, status: 'pending' }
     }
 
     if (current.status === 'pending' || current.status === 'paused') {
@@ -77,7 +73,7 @@ export default defineEventHandler(async (event) => {
     })
   })
 
-  if (!subscription.id || !checkoutLink(subscription, isNonProductionSite)) throw createError({ statusCode: 502, statusMessage: 'O Mercado Pago não retornou o link de pagamento.' })
+  if (!subscription.id || !subscription.init_point) throw createError({ statusCode: 502, statusMessage: 'O Mercado Pago não retornou o link de pagamento.' })
   const { error: saveError } = await supabase.from('subscriptions').upsert({
     user_id: user.id, provider: 'mercadopago', provider_subscription_id: subscription.id,
     status: subscription.status, plan: planId, amount: offer.amountCents / 100,
@@ -89,7 +85,7 @@ export default defineEventHandler(async (event) => {
   if (accountError) throw createError({ statusCode: 500, statusMessage: 'Erro ao vincular assinatura. Tente novamente com o mesmo plano.' })
   completed = true
 
-  return { checkoutUrl: checkoutLink(subscription, isNonProductionSite), subscriptionId: subscription.id, status: subscription.status, plan: planId }
+  return { checkoutUrl: subscription.init_point, subscriptionId: subscription.id, status: subscription.status, plan: planId }
   } finally {
     await supabase.from('billing_checkout_attempts').update({
       locked_until: new Date(0).toISOString(), completed
