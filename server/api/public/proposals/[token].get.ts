@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
 
   const [{ data: items }, { data: profile }] = await Promise.all([
     supabase.from('proposal_items').select('description,quantity,unit_price,sort_order').eq('proposal_id', proposal.id).order('sort_order'),
-    supabase.from('profiles').select('company_name,logo_url,plan').eq('id', proposal.user_id).single()
+    supabase.from('profiles').select('company_name,logo_url,plan,paid_through').eq('id', proposal.user_id).single()
   ])
 
   return {
@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
       status: proposal.status,
       company_name: profile?.company_name || 'Proposta comercial',
       logo_url: profile?.logo_url || null,
-      branded: !planRemovesBranding(profile?.plan),
+      branded: !planRemovesBranding(effectivePlan(profile)),
       items: items || []
     }
   }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { billingOffer, BILLING_CYCLES, isBillingCycle, type BillingCycle } from '~~/shared/billing-catalog'
 definePageMeta({ middleware: 'auth' })
 useSeoMeta({ title: 'Painel' })
 
@@ -16,6 +17,8 @@ type PaidPlan = 'essencial' | 'pro'
 
 const route = useRoute()
 const router = useRouter()
+const cycle = ref<BillingCycle>(isBillingCycle(route.query.cycle) ? route.query.cycle : 'monthly')
+const subscription = ref<any>(null)
 const { request } = useApi()
 const loading = ref(true)
 const proposals = ref<Proposal[]>([])
@@ -35,6 +38,7 @@ function money(value: number) {
 async function refreshAccount() {
   const me = await request<any>('/api/me')
   profile.value = me.profile
+  subscription.value = me.subscription
   usage.value = me.usage
 }
 
@@ -48,6 +52,7 @@ async function load() {
     ])
     proposals.value = list.proposals
     profile.value = me.profile
+    subscription.value = me.subscription
     usage.value = me.usage
 
     if (route.query.billing === 'return' && profile.value?.subscription_id) {
@@ -78,7 +83,7 @@ async function startCheckout(plan: PaidPlan) {
   errorMessage.value = ''
   billingMessage.value = ''
   try {
-    const result = await request<{ checkoutUrl?: string, status?: string }>('/api/billing/checkout', { method: 'POST', body: { plan } })
+    const result = await request<{ checkoutUrl?: string, status?: string }>('/api/billing/checkout', { method: 'POST', body: { plan, cycle: cycle.value } })
     if (result.checkoutUrl) {
       window.location.href = result.checkoutUrl
       return
@@ -100,7 +105,7 @@ async function cancelBilling() {
   try {
     await request('/api/billing/cancel', { method: 'POST' })
     await refreshAccount()
-    billingMessage.value = 'Assinatura cancelada. Não haverá novas cobranças.'
+    billingMessage.value = 'Renovação cancelada. O acesso continua até o fim do período pago.'
   } catch (error: any) {
     errorMessage.value = error?.data?.statusMessage || error?.message || 'Não foi possível cancelar a assinatura.'
   } finally {
@@ -133,6 +138,11 @@ onMounted(load)
         <NuxtLink class="btn btn-primary" to="/dashboard/propostas/nova">+ Nova proposta</NuxtLink>
       </div>
 
+      <template v-if="profile && !isPaid">
+        <BillingCycleSelector v-model="cycle" :disabled="!!billingLoading" />
+        <p>Cobrança integral a cada {{ BILLING_CYCLES[cycle].months }} {{ cycle === 'monthly' ? 'mês' : 'meses' }}, com renovação automática. Os limites de envio continuam mensais.</p>
+      </template>
+      <p v-if="subscription && isPaid">Assinatura {{ BILLING_CYCLES[subscription.billing_cycle as BillingCycle]?.name.toLowerCase() }} · {{ money(subscription.amount_cents / 100) }} por período.<br />Acesso até {{ new Date(profile.paid_through).toLocaleDateString('pt-BR') }}. {{ subscription.status === 'cancelled' ? 'Renovação cancelada.' : 'Renovação automática.' }}</p>
       <div v-if="profile && usage" class="upgrade-banner card">
         <div>
           <strong v-if="usage.limit === null">Propostas ilimitadas no plano Pro</strong>
@@ -144,21 +154,16 @@ onMounted(load)
         <div class="billing-actions">
           <template v-if="profile.plan === 'free'">
             <button class="btn btn-primary" :disabled="!!billingLoading" @click="startCheckout('essencial')">
-              {{ billingLoading === 'essencial' ? 'Abrindo...' : 'Essencial · R$ 19,90' }}
+              {{ billingLoading === 'essencial' ? 'Abrindo...' : `Essencial · ${money(billingOffer('essencial', cycle).amountCents / 100)}` }}
             </button>
             <button class="btn btn-dark" :disabled="!!billingLoading" @click="startCheckout('pro')">
-              {{ billingLoading === 'pro' ? 'Abrindo...' : 'Pro · R$ 39,90' }}
+              {{ billingLoading === 'pro' ? 'Abrindo...' : `Pro · ${money(billingOffer('pro', cycle).amountCents / 100)}` }}
             </button>
           </template>
           <template v-else>
-            <button v-if="profile.plan === 'essencial'" class="btn btn-dark" :disabled="!!billingLoading" @click="startCheckout('pro')">
-              {{ billingLoading === 'pro' ? 'Atualizando...' : 'Mudar para Pro · R$ 39,90' }}
-            </button>
-            <button v-else class="btn btn-secondary" :disabled="!!billingLoading" @click="startCheckout('essencial')">
-              {{ billingLoading === 'essencial' ? 'Atualizando...' : 'Mudar para Essencial' }}
-            </button>
-            <button v-if="isPaid && profile.plan_status === 'authorized'" class="link-button billing-cancel" :disabled="!!billingLoading" @click="cancelBilling">
-              {{ billingLoading === 'cancel' ? 'Cancelando...' : 'Cancelar assinatura' }}
+            <span>Para mudar de plano ou período, cancele a renovação e escolha a nova opção ao fim do acesso.</span>
+            <button v-if="['authorized','paused'].includes(profile.plan_status)" class="link-button billing-cancel" :disabled="!!billingLoading" @click="cancelBilling">
+              {{ billingLoading === 'cancel' ? 'Cancelando...' : 'Cancelar renovação' }}
             </button>
           </template>
         </div>

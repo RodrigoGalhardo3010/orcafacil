@@ -5,8 +5,6 @@ export default defineEventHandler(async (event) => {
   if (!profile?.subscription_id) return { ok: true, status: 'none' }
   const subscription = await mercadoPagoRequest(event, `/preapproval/${encodeURIComponent(profile.subscription_id)}`)
   await applySubscriptionStatus(event, subscription)
-  if (subscription.status === 'authorized') {
-    await reconcileAuthorizedPayments(event, String(subscription.id))
-  }
+  await reconcileAuthorizedPayments(event, String(subscription.id))
   return { ok: true, status: subscription.status }
 })

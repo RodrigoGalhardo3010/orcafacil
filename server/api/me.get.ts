@@ -8,10 +8,15 @@ export default defineEventHandler(async (event) => {
   start.setUTCDate(1)
   start.setUTCHours(0, 0, 0, 0)
   const { count } = await supabase.from('proposals').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('sent_at', start.toISOString())
-  const plan = getPlan(profile?.plan)
+  const plan = getPlan(effectivePlan(profile))
+  const { data: subscription } = profile?.subscription_id
+    ? await supabase.from('subscriptions').select('billing_cycle,amount_cents,current_period_end,status')
+      .eq('user_id', user.id).eq('provider', 'mercadopago').eq('provider_subscription_id', profile.subscription_id).maybeSingle()
+    : { data: null }
 
   return {
-    profile,
+    profile: { ...profile, plan: plan.id },
+    subscription,
     usage: {
       sentThisMonth: count || 0,
       limit: plan.monthlyProposalLimit,

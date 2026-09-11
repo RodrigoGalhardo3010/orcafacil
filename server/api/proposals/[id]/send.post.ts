@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   const { proposal, items } = await getProposalForOwner(event, id, user.id)
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
 
-  const plan = getPlan(profile?.plan)
+  const plan = getPlan(effectivePlan(profile))
   if (plan.monthlyProposalLimit !== null && !proposal.sent_at) {
     const start = new Date()
     start.setUTCDate(1)

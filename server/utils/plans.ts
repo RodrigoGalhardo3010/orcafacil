@@ -23,7 +23,7 @@ export type PlanId = keyof typeof PLAN_DEFINITIONS
 export type PaidPlanId = Exclude<PlanId, 'free'>
 
 export function isPlanId(value: unknown): value is PlanId {
-  return typeof value === 'string' && value in PLAN_DEFINITIONS
+  return typeof value === 'string' && Object.hasOwn(PLAN_DEFINITIONS, value)
 }
 
 export function isPaidPlanId(value: unknown): value is PaidPlanId {

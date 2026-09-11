@@ -33,9 +33,7 @@ export default defineEventHandler(async (event) => {
   if (topic === 'subscription_preapproval' && dataId) {
     const subscription = await mercadoPagoRequest(event, `/preapproval/${encodeURIComponent(dataId)}`)
     await applySubscriptionStatus(event, subscription)
-    if (subscription.status === 'authorized') {
-      await reconcileAuthorizedPayments(event, String(subscription.id))
-    }
+    await reconcileAuthorizedPayments(event, String(subscription.id))
   }
 
   if (topic === 'subscription_authorized_payment' && dataId) {
@@ -47,5 +45,15 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  if (topic === 'payment' && dataId) {
+    const supabase = getAdminClient(event)
+    const { data: invoices, error } = await supabase.from('subscription_payments')
+      .select('provider_payment_id').eq('provider', 'mercadopago').eq('mercado_pago_payment_id', dataId)
+    if (error) throw createError({ statusCode: 500, statusMessage: 'Erro ao consultar cobrança.' })
+    for (const invoice of invoices || []) {
+      const payment = await mercadoPagoRequest(event, `/authorized_payments/${encodeURIComponent(invoice.provider_payment_id)}`)
+      await recordAuthorizedPayment(event, payment)
+    }
+  }
   return { ok: true }
 })

@@ -7,12 +7,22 @@ import vm from 'node:vm'
 import ts from 'typescript'
 import { PDFDocument } from 'pdf-lib'
 
+const nodeRequire = createRequire(import.meta.url)
+let catalogExports
+
 function load(file, globals = {}) {
   const code = ts.transpileModule(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 }
   }).outputText
   const context = {
-    exports: {}, require: createRequire(import.meta.url),
+    exports: {},
+    require: (specifier) => {
+      if (specifier === '~~/shared/billing-catalog') {
+        if (!catalogExports) catalogExports = load('shared/billing-catalog.ts')
+        return catalogExports
+      }
+      return nodeRequire(specifier)
+    },
     createError: details => Object.assign(new Error(details.statusMessage), details),
     ...globals
   }
@@ -98,10 +108,56 @@ test('billing releases a plan only for an approved BRL payment with the exact pr
   assert.equal(billing.isApprovedAuthorizedPayment({ ...valid, preapproval_id: '' }, 'essencial'), false)
 })
 
+test('billing catalog exposes the six approved offers with exact cents and months', () => {
+  const catalog = load('shared/billing-catalog.ts')
+  assert.equal(catalog.BILLING_PRICES.essencial.monthly, 1990)
+  assert.equal(catalog.BILLING_PRICES.essencial.quarterly, 4179)
+  assert.equal(catalog.BILLING_PRICES.essencial.annual, 11940)
+  assert.equal(catalog.BILLING_PRICES.pro.monthly, 3990)
+  assert.equal(catalog.BILLING_PRICES.pro.quarterly, 8379)
+  assert.equal(catalog.BILLING_PRICES.pro.annual, 23940)
+  assert.equal(catalog.BILLING_CYCLES.monthly.months, 1)
+  assert.equal(catalog.BILLING_CYCLES.quarterly.months, 3)
+  assert.equal(catalog.BILLING_CYCLES.annual.months, 12)
+  const annual = catalog.billingOffer('essencial', 'annual')
+  assert.equal(annual.name, 'Anual')
+  assert.equal(annual.months, 12)
+  assert.equal(annual.discount, 50)
+  assert.equal(annual.cycle, 'annual')
+  assert.equal(annual.plan, 'essencial')
+  assert.equal(annual.amountCents, 11940)
+  assert.equal(annual.version, catalog.BILLING_CATALOG_VERSION)
+  assert.equal(catalog.isBillingCycle('weekly'), false)
+  assert.equal(catalog.isBillingCycle('quarterly'), true)
+})
+
+test('effectivePlan never grants access beyond the paid period', () => {
+  const plans = load('server/utils/plans.ts')
+  const entitlements = load('server/utils/entitlements.ts', plans)
+  const now = Date.parse('2026-10-01T00:00:00Z')
+  assert.equal(entitlements.effectivePlan({ plan: 'pro', paid_through: '2026-12-01T00:00:00Z' }, now), 'pro')
+  assert.equal(entitlements.effectivePlan({ plan: 'pro', paid_through: '2026-09-01T00:00:00Z' }, now), 'free')
+  assert.equal(entitlements.effectivePlan({ plan: 'essencial', paid_through: null }, now), 'free')
+  assert.equal(entitlements.effectivePlan({ plan: 'free', paid_through: '2027-01-01T00:00:00Z' }, now), 'free')
+})
+
+test('billing validates an exact contract amount in cents instead of a plan id', () => {
+  const plans = load('server/utils/plans.ts')
+  const billing = load('server/utils/billing.ts', plans)
+  const valid = {
+    preapproval_id: 'sub-1', currency_id: 'BRL', transaction_amount: 41.79,
+    payment: { id: 1, status: 'approved' }
+  }
+  assert.equal(billing.isApprovedAuthorizedPayment(valid, { amount_cents: 4179 }), true)
+  assert.equal(billing.isApprovedAuthorizedPayment(valid, { amount_cents: 4180 }), false)
+  assert.equal(billing.isApprovedAuthorizedPayment({ ...valid, transaction_amount: 41.78 }, { amount_cents: 4179 }), false)
+})
+
 test('checkout fixes the Essencial price on the server', async () => {
   let providerPayload
   let storedSubscription
   const supabase = {
+    async rpc() { return { data: '22222222-2222-4222-8222-222222222222', error: null } },
     from(table) {
       const builder = {
         select() { return builder },
@@ -115,6 +171,7 @@ test('checkout fixes the Essencial price on the server', async () => {
     }
   }
   const plans = load('server/utils/plans.ts')
+  const entitlements = load('server/utils/entitlements.ts', plans)
   const handler = load('server/api/billing/checkout.post.ts', {
     defineEventHandler: handler => handler,
     requireUser: async () => ({ id: '11111111-1111-4111-8111-111111111111', email: 'cliente@example.com' }),
@@ -128,21 +185,28 @@ test('checkout fixes the Essencial price on the server', async () => {
       return { id: 'subscription-1', status: 'pending', init_point: 'https://example.com/checkout' }
     },
     crypto: webcrypto,
+    effectivePlan: entitlements.effectivePlan,
     ...plans
   }).default
 
   const result = await handler({})
   assert.equal(providerPayload.auto_recurring.transaction_amount, 19.90)
+  assert.equal(providerPayload.auto_recurring.frequency, 1)
+  assert.equal(providerPayload.auto_recurring.frequency_type, 'months')
   assert.equal(providerPayload.payer_email, 'cliente@example.com')
   assert.equal(providerPayload.back_url, 'http://localhost:3000/dashboard/billing-return')
   assert.equal(storedSubscription.plan, 'essencial')
   assert.equal(storedSubscription.amount, 19.90)
+  assert.equal(storedSubscription.amount_cents, 1990)
+  assert.equal(storedSubscription.billing_cycle, 'monthly')
+  assert.equal(storedSubscription.frequency_months, 1)
   assert.equal(result.checkoutUrl, 'https://example.com/checkout')
 })
 
 test('checkout uses a Mercado Pago test buyer only on staging', async () => {
   let providerPayload
   const supabase = {
+    async rpc() { return { data: '33333333-3333-4333-8333-333333333333', error: null } },
     from() {
       const builder = {
         select() { return builder },
@@ -155,6 +219,7 @@ test('checkout uses a Mercado Pago test buyer only on staging', async () => {
     }
   }
   const plans = load('server/utils/plans.ts')
+  const entitlements = load('server/utils/entitlements.ts', plans)
   const handler = load('server/api/billing/checkout.post.ts', {
     defineEventHandler: handler => handler,
     requireUser: async () => ({ id: '11111111-1111-4111-8111-111111111111', email: 'cliente@example.com' }),
@@ -167,6 +232,7 @@ test('checkout uses a Mercado Pago test buyer only on staging', async () => {
       return { id: 'subscription-test', status: 'pending', init_point: 'https://example.com/checkout' }
     },
     crypto: webcrypto,
+    effectivePlan: entitlements.effectivePlan,
     ...plans
   }).default
 

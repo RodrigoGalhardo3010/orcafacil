@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isBillingCycle } from '~~/shared/billing-catalog'
 const route = useRoute()
 const supabase = useSupabase()
 const mode = ref(route.query.mode === 'signup' ? 'signup' : 'login')
@@ -12,7 +13,7 @@ const errorMessage = ref('')
 
 function dashboardTarget() {
   return route.query.plan === 'essencial' || route.query.plan === 'pro'
-    ? `/dashboard?plan=${route.query.plan}`
+    ? `/dashboard?plan=${route.query.plan}&cycle=${isBillingCycle(route.query.cycle) ? route.query.cycle : 'monthly'}`
     : '/dashboard'
 }
 
