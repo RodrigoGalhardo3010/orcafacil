@@ -1,12 +1,18 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "orcafacil",
+  "account_id": "2f3b8c5912c84da6e89f87a82246504e",
   "main": ".output/server/index.mjs",
   "keep_vars": true,
   "compatibility_date": "2026-09-05",
   "compatibility_flags": ["no_nodejs_compat", "no_nodejs_compat_v2"],
   "assets": {
     "directory": ".output/public"
+  },
+  "vars": {
+    "NUXT_PUBLIC_SITE_URL": "https://orcafacil.rrrgalhardo.workers.dev",
+    "NUXT_PUBLIC_SUPABASE_URL": "https://jobndmsargydskcsvnrk.supabase.co",
+    "NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_DI7tyjzkJmRggpx5uS_eiA_oqHoPd8n"
   },
   "observability": {
     "enabled": true
