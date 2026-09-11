@@ -61,7 +61,7 @@ async function sendProposal() {
     publicUrl.value = result.publicUrl
     pdfUrl.value = result.pdfUrl
     const sent = result.emailSent ? 'email' : (proposal.value.client_email ? 'failed' : 'ok')
-    await navigateTo({ path: '/dashboard', query: { sent } })
+    await navigateTo({ path: '/dashboard', query: { sent, reason: sent === 'failed' ? String(result.emailStatus || '') : undefined } })
   } catch (error: any) {
     errorMessage.value = error?.data?.statusMessage || error?.message || 'Erro ao enviar.'
   } finally { sending.value = false }

@@ -50,8 +50,9 @@ export default defineEventHandler(async (event) => {
       const result = await sendProposalEmail(event, proposal.client_email, profile?.company_name || 'Uma empresa', proposal.client_name, proposal.title, publicUrl, pdf, pdfFilename)
       emailSent = result.sent
       emailStatus = result.sent ? 'sent' : (result.reason || 'failed')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Email error', error)
+      emailStatus = `error:${error?.statusMessage || error?.message || 'unknown'}`.slice(0, 200)
     }
   }
   return { proposal: updated, publicUrl, pdfUrl, emailSent, emailStatus }

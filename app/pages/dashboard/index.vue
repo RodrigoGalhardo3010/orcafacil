@@ -75,7 +75,7 @@ async function load() {
 
     if (route.query.sent) {
       if (route.query.sent === 'email') sentMessage.value = 'Proposta enviada com o PDF anexado e o link para aceite.'
-      else if (route.query.sent === 'failed') errorMessage.value = 'Proposta enviada, mas o e-mail não foi entregue. Use o link para compartilhar.'
+      else if (route.query.sent === 'failed') errorMessage.value = `Proposta enviada, mas o e-mail não foi entregue (${route.query.reason || 'motivo desconhecido'}). Use o link para compartilhar.`
       else sentMessage.value = 'Proposta enviada com link de aceite e PDF para compartilhamento.'
       await router.replace({ query: {} })
     }

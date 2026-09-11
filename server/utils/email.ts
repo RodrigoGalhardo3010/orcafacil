@@ -8,7 +8,11 @@ async function deliverEmail(apiKey: string, payload: { from: string, to: string,
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...payload, to: [payload.to] })
   })
-  if (!response.ok) throw createError({ statusCode: 502, statusMessage: 'Falha no envio de e-mail.' })
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    console.error('Resend error', response.status, detail.slice(0, 300))
+    throw createError({ statusCode: 502, statusMessage: `Resend ${response.status}: ${detail.slice(0, 200)}` })
+  }
   return await response.json() as { id: string }
 }
 
