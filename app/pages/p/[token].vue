@@ -8,6 +8,11 @@ const responseName = ref('')
 const responseEmail = ref('')
 const responding = ref(false)
 const responseDone = ref('')
+const negotiating = ref(false)
+const negotiateDone = ref('')
+const negotiateValue = ref('')
+const negotiateTerms = ref('')
+const negotiateMessage = ref('')
 const pdfUrl = computed(() => route.params.token === 'demo' ? '' : `/api/public/proposals/${route.params.token}/pdf`)
 
 function money(value: number) {
@@ -55,6 +60,26 @@ async function respond(decision: 'accepted' | 'rejected') {
   } finally { responding.value = false }
 }
 
+async function negotiate() {
+  const value = Number(String(negotiateValue.value).replace(/\./g, '').replace(',', '.'))
+  if (!Number.isFinite(value) || value <= 0) {
+    errorMessage.value = 'Informe o valor que deseja negociar.'
+    return
+  }
+  negotiating.value = true
+  errorMessage.value = ''
+  try {
+    await $fetch(`/api/public/proposals/${route.params.token}/negotiate`, {
+      method: 'POST',
+      body: { requested_total: value, requested_payment_terms: negotiateTerms.value, message: negotiateMessage.value }
+    })
+    proposal.value.status = 'negotiating'
+    negotiateDone.value = 'Solicitação de desconto enviada ao vendedor. Você será avisado assim que houver uma resposta.'
+  } catch (error: any) {
+    errorMessage.value = error?.data?.statusMessage || 'Não foi possível enviar a solicitação.'
+  } finally { negotiating.value = false }
+}
+
 onMounted(load)
 </script>
 
@@ -75,7 +100,16 @@ onMounted(load)
       <section v-if="proposal.status === 'sent'" class="response-box">
         <h2>Responder proposta</h2><p>Informe seu nome e registre sua decisão.</p><div class="form-grid two"><label>Nome<input v-model="responseName" placeholder="Seu nome" /></label><label>E-mail (opcional)<input v-model="responseEmail" type="email" placeholder="seu@email.com" /></label></div><div class="response-actions"><button class="btn btn-primary" :disabled="responding" @click="respond('accepted')">Aceitar proposta</button><button class="btn btn-secondary" :disabled="responding" @click="respond('rejected')">Recusar</button></div><p class="fine-print">Este recurso registra o aceite comercial e seus metadados básicos. Não substitui assinatura eletrônica qualificada quando a operação exigir formalidade específica.</p>
       </section>
-      <p v-if="responseDone" class="notice success">{{ responseDone }}</p><p v-else-if="errorMessage" class="notice error">{{ errorMessage }}</p>
+      <section v-if="proposal.status === 'negotiating'" class="response-box">
+        <h2>Solicitação de desconto em análise</h2><p>Sua solicitação foi enviada ao vendedor. Acompanhe por este link: quando houver uma resposta, a proposta será atualizada aqui.</p>
+      </section>
+      <section v-if="proposal.status === 'sent'" class="response-box">
+        <h2>Negociar valor</h2><p>Quer um valor ou uma condição diferentes? Envie sua proposta e o vendedor pode aceitar, recusar ou fazer uma contraproposta.</p>
+        <div class="form-grid two"><label>Valor desejado (R$)<input v-model="negotiateValue" inputmode="decimal" placeholder="Ex.: 1000,00" /></label><label>Condição de pagamento<input v-model="negotiateTerms" placeholder="Ex.: 10x sem juros" /></label></div>
+        <label>Mensagem (opcional)<textarea v-model="negotiateMessage" rows="2" placeholder="Explique o motivo do pedido." /></label>
+        <div class="response-actions"><button class="btn btn-secondary" :disabled="negotiating" @click="negotiate">{{ negotiating ? 'Enviando...' : 'Solicitar desconto' }}</button></div>
+      </section>
+      <p v-if="responseDone || negotiateDone" class="notice success">{{ responseDone || negotiateDone }}</p><p v-else-if="errorMessage" class="notice error">{{ errorMessage }}</p>
       <footer v-if="proposal.branded !== false" class="powered-by">Proposta criada com <NuxtLink to="/">OrçaFácil</NuxtLink></footer>
     </article>
   </main>

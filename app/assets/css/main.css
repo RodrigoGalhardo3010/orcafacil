@@ -98,6 +98,7 @@ textarea { resize: vertical; }
 .empty { padding: 56px 24px; text-align: center; color: var(--muted); }
 .empty h3 { color: var(--ink); }
 .table-card { overflow: hidden; }
+.filters-bar { display: grid; grid-template-columns: 1.1fr 1.4fr .8fr .8fr auto auto; gap: 10px; align-items: center; padding: 14px 18px; margin-bottom: 18px; }
 .table-head, .table-row { display: grid; grid-template-columns: 1.5fr 1.2fr .7fr .7fr .5fr; gap: 18px; align-items: center; padding: 15px 20px; }
 .table-head { background: #f8fafc; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .table-row { border-top: 1px solid var(--line); font-size: 14px; }
@@ -108,6 +109,8 @@ textarea { resize: vertical; }
 .status-sent { background: #eff6ff; color: #1d4ed8 !important; }
 .status-accepted { background: #ecfdf5; color: #15803d !important; }
 .status-rejected { background: #fef2f2; color: #b91c1c !important; }
+.status-negotiating { background: #fefce8; color: #a16207 !important; }
+.status-renegociada { background: #f5f3ff; color: #6d28d9 !important; }
 .editor-grid { display: grid; gap: 18px; }
 .form-section { padding: 26px; }
 .form-section h2 { margin: 0 0 4px; font-size: 20px; }
@@ -163,6 +166,11 @@ textarea { resize: vertical; }
 .share-bar > div { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .share-url { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
 .share-actions { flex-wrap: wrap; justify-content: flex-end; }
+.negotiation-card { border-left: 4px solid #f59e0b; margin-bottom: 18px; }
+.negotiation-card h2 { margin-top: 0; }
+.negotiation-message { background: #fefce8; padding: 12px 14px; border-radius: 10px; font-style: italic; }
+.negotiation-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+.counter-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center; border-top: 1px solid var(--line); padding-top: 14px; }
 .public-proposal-page { min-height: 100vh; padding: 42px 16px; }
 .proposal-document { width: min(860px, 100%); margin: 0 auto; padding: 42px; }
 .document-header { display: flex; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 26px; }
@@ -217,6 +225,8 @@ textarea { resize: vertical; }
   .table-row > span:nth-of-type(1), .table-row > strong { display: none; }
   .dashboard-heading, .upgrade-banner, .share-bar { align-items: stretch; flex-direction: column; }
   .form-grid.two, .document-terms { grid-template-columns: 1fr; }
+  .counter-row { grid-template-columns: 1fr; }
+  .filters-bar { grid-template-columns: 1fr 1fr; }
   .area-grid { grid-template-columns: repeat(2, 1fr); }
   .assistant-layout { grid-template-columns: 1fr; }
   .draft-card { position: static; }

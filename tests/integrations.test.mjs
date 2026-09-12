@@ -65,7 +65,7 @@ test('email sends escaped HTML to Resend and propagates provider failure', async
       assert.equal(url, 'https://api.resend.com/emails')
       assert.equal(options.method, 'POST')
       payload = JSON.parse(options.body)
-      return { ok: succeed, json: async () => ({ id: 'unit-test-id' }) }
+      return { ok: succeed, json: async () => ({ id: 'unit-test-id' }), text: async () => 'provider error' }
     }
   })
   const result = await email.sendProposalEmail({}, 'test@example.com', '<Company>', '<Client>', '<Title>', 'https://example.com/p/demo', new Uint8Array([37, 80, 68, 70]), 'proposta-teste.pdf')

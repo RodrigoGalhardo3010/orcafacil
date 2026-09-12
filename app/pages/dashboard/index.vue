@@ -28,6 +28,11 @@ const errorMessage = ref('')
 const billingMessage = ref('')
 const sentMessage = ref('')
 const billingLoading = ref<PaidPlan | 'cancel' | ''>('')
+const filterStatus = ref('')
+const filterClient = ref('')
+const filterFrom = ref('')
+const filterTo = ref('')
+const hasFilters = computed(() => !!(filterStatus.value || filterClient.value.trim() || filterFrom.value || filterTo.value))
 
 const planName = computed(() => profile.value?.plan === 'pro' ? 'Pro' : profile.value?.plan === 'essencial' ? 'Essencial' : 'Grátis')
 const isPaid = computed(() => profile.value?.plan === 'essencial' || profile.value?.plan === 'pro')
@@ -47,8 +52,14 @@ async function load() {
   loading.value = true
   errorMessage.value = ''
   try {
+    const params: Record<string, string> = {}
+    if (filterStatus.value) params.status = filterStatus.value
+    if (filterClient.value.trim()) params.client = filterClient.value.trim()
+    if (filterFrom.value) params.from = filterFrom.value
+    if (filterTo.value) params.to = filterTo.value
+    const qs = new URLSearchParams(params).toString()
     const [list, me] = await Promise.all([
-      request<{ proposals: Proposal[] }>('/api/proposals'),
+      request<{ proposals: Proposal[] }>(qs ? `/api/proposals?${qs}` : '/api/proposals'),
       request<any>('/api/me')
     ])
     proposals.value = list.proposals
@@ -130,6 +141,18 @@ async function syncBilling() {
   }
 }
 
+async function applyFilters() {
+  await load()
+}
+
+function clearFilters() {
+  filterStatus.value = ''
+  filterClient.value = ''
+  filterFrom.value = ''
+  filterTo.value = ''
+  load()
+}
+
 onMounted(load)
 </script>
 
@@ -180,11 +203,35 @@ onMounted(load)
       <p v-if="sentMessage" class="notice success">{{ sentMessage }}</p>
       <p v-if="billingMessage" class="notice success">{{ billingMessage }}</p>
       <p v-if="errorMessage" class="notice error">{{ errorMessage }}</p>
+      <div v-if="!loading" class="filters-bar card">
+        <select v-model="filterStatus">
+          <option value="">Todos os status</option>
+          <option value="draft">Rascunho</option>
+          <option value="sent">Enviada</option>
+          <option value="negotiating">Em negociação</option>
+          <option value="accepted">Aceita</option>
+          <option value="rejected">Recusada</option>
+          <option value="expired">Expirada</option>
+          <option value="renegociada">Renegociada</option>
+        </select>
+        <input v-model="filterClient" placeholder="Buscar cliente" @keyup.enter="applyFilters" />
+        <input v-model="filterFrom" type="date" title="De" />
+        <input v-model="filterTo" type="date" title="Até" />
+        <button class="btn btn-primary btn-small" @click="applyFilters">Filtrar</button>
+        <button v-if="hasFilters" class="btn btn-secondary btn-small" @click="clearFilters">Limpar</button>
+      </div>
       <div v-if="loading" class="empty card">Carregando...</div>
       <div v-else-if="!proposals.length" class="empty card">
-        <h3>Nenhuma proposta ainda</h3>
-        <p>Crie sua primeira proposta e envie o link ao cliente.</p>
-        <NuxtLink class="btn btn-primary" to="/dashboard/propostas/nova">Criar primeira proposta</NuxtLink>
+        <template v-if="hasFilters">
+          <h3>Nenhuma proposta encontrada</h3>
+          <p>Ajuste os filtros ou limpe a busca.</p>
+          <button class="btn btn-secondary" @click="clearFilters">Limpar filtros</button>
+        </template>
+        <template v-else>
+          <h3>Nenhuma proposta ainda</h3>
+          <p>Crie sua primeira proposta e envie o link ao cliente.</p>
+          <NuxtLink class="btn btn-primary" to="/dashboard/propostas/nova">Criar primeira proposta</NuxtLink>
+        </template>
       </div>
       <div v-else class="table-card card">
         <div class="table-head"><span>Proposta</span><span>Cliente</span><span>Status</span><span>Valor</span><span></span></div>

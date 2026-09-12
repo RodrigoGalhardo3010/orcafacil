@@ -56,3 +56,37 @@ export async function getProposalForOwner(event: H3Event, proposalId: string, us
   if (itemsError) throw createError({ statusCode: 500, statusMessage: 'Erro ao carregar itens.' })
   return { proposal, items: items || [] }
 }
+
+export async function deliverProposalEmail(event: H3Event, proposal: any, items: any[], profile: any) {
+  const config = useRuntimeConfig(event)
+  const publicUrl = `${config.public.siteUrl}/p/${proposal.public_token}`
+  let emailSent = false
+  let emailStatus: string = proposal.client_email ? 'failed' : 'not_requested'
+  if (proposal.client_email) {
+    try {
+      const pdfFilename = proposalPdfFilename(proposal.number)
+      const pdf = await createProposalPdf({
+        companyName: profile?.company_name || 'Proposta comercial',
+        number: proposal.number,
+        clientName: proposal.client_name,
+        title: proposal.title,
+        introduction: proposal.introduction,
+        validUntil: proposal.valid_until,
+        paymentTerms: proposal.payment_terms,
+        notes: proposal.notes,
+        subtotal: proposal.subtotal,
+        discount: proposal.discount,
+        total: proposal.total,
+        items,
+        publicUrl
+      })
+      const result = await sendProposalEmail(event, proposal.client_email, profile?.company_name || 'Uma empresa', proposal.client_name, proposal.title, publicUrl, pdf, pdfFilename)
+      emailSent = result.sent
+      emailStatus = result.sent ? 'sent' : (result.reason || 'failed')
+    } catch (error: any) {
+      console.error('Email error', error)
+      emailStatus = `error:${error?.statusMessage || error?.message || 'unknown'}`.slice(0, 200)
+    }
+  }
+  return { emailSent, emailStatus, publicUrl }
+}

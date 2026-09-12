@@ -13,6 +13,11 @@ const publicUrl = ref('')
 const pdfUrl = ref('')
 const proposal = ref<any>(null)
 const sharing = ref(false)
+const negotiations = ref<any[]>([])
+const negotiatingAction = ref('')
+const counterTotal = ref('')
+const counterTerms = ref('')
+const openNegotiation = computed(() => negotiations.value.find(n => n.status === 'open') || null)
 
 function money(value: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
@@ -26,6 +31,7 @@ async function load() {
     proposal.value = result.proposal
     publicUrl.value = result.publicUrl
     pdfUrl.value = result.pdfUrl
+    negotiations.value = result.negotiations || []
   } catch (error: any) {
     errorMessage.value = error?.data?.statusMessage || error?.message || 'Não foi possível carregar.'
   } finally {
@@ -57,11 +63,14 @@ async function sendProposal() {
   try {
     if (!await save()) return
     const result = await request<any>(`/api/proposals/${route.params.id}/send`, { method: 'POST' })
-    proposal.value.status = 'sent'
+    proposal.value = { ...proposal.value, ...result.proposal }
     publicUrl.value = result.publicUrl
     pdfUrl.value = result.pdfUrl
-    const sent = result.emailSent ? 'email' : (proposal.value.client_email ? 'failed' : 'ok')
-    await navigateTo({ path: '/dashboard', query: { sent, reason: sent === 'failed' ? String(result.emailStatus || '') : undefined } })
+    successMessage.value = result.emailSent
+      ? 'Proposta enviada! Compartilhe o link pelo WhatsApp abaixo.'
+      : (proposal.value.client_email
+        ? 'Proposta enviada, mas o e-mail não foi entregue. Compartilhe o link pelo WhatsApp abaixo.'
+        : 'Proposta enviada! Compartilhe o link pelo WhatsApp abaixo.')
   } catch (error: any) {
     errorMessage.value = error?.data?.statusMessage || error?.message || 'Erro ao enviar.'
   } finally { sending.value = false }
@@ -107,6 +116,42 @@ async function shareWhatsApp() {
   }
 }
 
+async function respondToNegotiation(decision: 'accept' | 'reject' | 'counter') {
+  const neg = openNegotiation.value
+  if (!neg) return
+  if (decision === 'counter' && !counterTotal.value) {
+    errorMessage.value = 'Informe o valor da contraproposta.'
+    return
+  }
+  negotiatingAction.value = decision
+  successMessage.value = ''
+  errorMessage.value = ''
+  try {
+    const body: any = { decision }
+    if (decision === 'counter') {
+      body.counter_total = Number(String(counterTotal.value).replace(/\./g, '').replace(',', '.'))
+      body.counter_payment_terms = counterTerms.value
+    }
+    const result = await request<any>(`/api/proposals/${route.params.id}/negotiate/respond`, { method: 'POST', body })
+    if (decision === 'counter') {
+      successMessage.value = 'Contraproposta criada e enviada.'
+      await navigateTo(`/dashboard/propostas/${result.proposal.id}`)
+      return
+    }
+    if (decision === 'accept') {
+      proposal.value = { ...proposal.value, ...result.proposal }
+      negotiations.value = negotiations.value.map(n => n.id === neg.id ? { ...n, status: 'accepted' } : n)
+      successMessage.value = result.emailSent ? 'Desconto aplicado e proposta reenviada por e-mail.' : 'Desconto aplicado. Reenvie o link pelo WhatsApp abaixo.'
+    } else {
+      proposal.value.status = 'sent'
+      negotiations.value = negotiations.value.map(n => n.id === neg.id ? { ...n, status: 'rejected' } : n)
+      successMessage.value = 'Solicitação recusada. A proposta continua válida com o valor original.'
+    }
+  } catch (error: any) {
+    errorMessage.value = error?.data?.statusMessage || error?.message || 'Erro ao responder.'
+  } finally { negotiatingAction.value = '' }
+}
+
 function proposalPdfName() {
   const number = String(proposal.value?.number || 'proposta').replace(/[^a-zA-Z0-9_-]+/g, '-').toLowerCase()
   return `${number || 'proposta'}.pdf`
@@ -131,6 +176,21 @@ onMounted(load)
             <button class="btn btn-primary btn-small" :disabled="sending" @click="sendProposal">{{ sending ? 'Enviando...' : (proposal.status === 'draft' ? 'Enviar proposta' : 'Reenviar') }}</button>
           </div>
         </div>
+        <section v-if="openNegotiation" class="card form-section negotiation-card">
+          <h2>Solicitação de desconto</h2>
+          <p><strong>{{ proposal.client_name }}</strong> pediu <strong>{{ money(openNegotiation.requested_total) }}</strong><span v-if="openNegotiation.requested_payment_terms"> com a condição: {{ openNegotiation.requested_payment_terms }}</span>.</p>
+          <p v-if="openNegotiation.message" class="negotiation-message">"{{ openNegotiation.message }}"</p>
+          <p class="fine-print">Valor original: {{ money(subtotal) }} (total atual {{ money(total) }}).</p>
+          <div class="negotiation-actions">
+            <button class="btn btn-primary btn-small" :disabled="!!negotiatingAction" @click="respondToNegotiation('accept')">{{ negotiatingAction === 'accept' ? 'Aplicando...' : 'Aceitar e reenviar' }}</button>
+            <button class="btn btn-secondary btn-small" :disabled="!!negotiatingAction" @click="respondToNegotiation('reject')">{{ negotiatingAction === 'reject' ? 'Recusando...' : 'Recusar' }}</button>
+          </div>
+          <div class="counter-row">
+            <input v-model="counterTotal" inputmode="decimal" placeholder="Valor da contraproposta (R$)" />
+            <input v-model="counterTerms" placeholder="Condição de pagamento" />
+            <button class="btn btn-dark btn-small" :disabled="!!negotiatingAction" @click="respondToNegotiation('counter')">{{ negotiatingAction === 'counter' ? 'Criando...' : 'Fazer contraproposta' }}</button>
+          </div>
+        </section>
         <form class="editor-grid" @submit.prevent="save">
           <section class="card form-section"><h2>Cliente</h2><div class="form-grid two"><label>Nome / empresa<input v-model="proposal.client_name" required /></label><label>E-mail<input v-model="proposal.client_email" type="email" /></label><label>WhatsApp<input v-model="proposal.client_phone" /></label><label>Validade<input v-model="proposal.valid_until" type="date" /></label></div></section>
           <section class="card form-section"><h2>Proposta</h2><label>Título<input v-model="proposal.title" required /></label><label>Apresentação<textarea v-model="proposal.introduction" rows="3" /></label></section>

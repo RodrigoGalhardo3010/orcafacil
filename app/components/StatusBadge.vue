@@ -3,9 +3,11 @@ const props = defineProps<{ status: string }>()
 const labels: Record<string, string> = {
   draft: 'Rascunho',
   sent: 'Enviada',
+  negotiating: 'Em negociação',
   accepted: 'Aceita',
   rejected: 'Recusada',
-  expired: 'Expirada'
+  expired: 'Expirada',
+  renegociada: 'Renegociada'
 }
 </script>
 
