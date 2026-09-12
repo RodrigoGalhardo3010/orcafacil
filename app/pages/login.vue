@@ -70,10 +70,12 @@ async function submit() {
         </form>
         <p v-if="message" class="notice success">{{ message }}</p>
         <p v-if="errorMessage" class="notice error">{{ errorMessage }}</p>
-        <NuxtLink v-if="mode === 'login'" class="link-button switch" to="/recuperar-senha">Esqueci minha senha</NuxtLink>
-        <button class="link-button switch" @click="mode = mode === 'login' ? 'signup' : 'login'">
-          {{ mode === 'login' ? 'Ainda não tem conta? Criar grátis' : 'Já tenho conta' }}
-        </button>
+        <div class="auth-links">
+          <NuxtLink v-if="mode === 'login'" class="link-button switch" to="/recuperar-senha">Esqueci minha senha</NuxtLink>
+          <button class="link-button switch" @click="mode = mode === 'login' ? 'signup' : 'login'">
+            {{ mode === 'login' ? 'Ainda não tem conta? Criar grátis' : 'Já tenho conta' }}
+          </button>
+        </div>
       </section>
     </main>
   </div>
