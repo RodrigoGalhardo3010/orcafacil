@@ -139,6 +139,8 @@ test('effectivePlan never grants access beyond the paid period', () => {
   assert.equal(entitlements.effectivePlan({ plan: 'pro', paid_through: '2026-09-01T00:00:00Z' }, now), 'free')
   assert.equal(entitlements.effectivePlan({ plan: 'essencial', paid_through: null }, now), 'free')
   assert.equal(entitlements.effectivePlan({ plan: 'free', paid_through: '2027-01-01T00:00:00Z' }, now), 'free')
+  assert.equal(entitlements.effectivePlan({ plan: 'free', is_admin: true }, now), 'pro')
+  assert.equal(entitlements.effectivePlan({ plan: 'essencial', paid_through: null, is_admin: true }, now), 'pro')
 })
 
 test('billing validates an exact contract amount in cents instead of a plan id', () => {

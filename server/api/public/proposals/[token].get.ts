@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
 
   const [{ data: items }, { data: profile }] = await Promise.all([
     supabase.from('proposal_items').select('description,quantity,unit_price,sort_order').eq('proposal_id', proposal.id).order('sort_order'),
-    supabase.from('profiles').select('company_name,logo_url,plan,paid_through').eq('id', proposal.user_id).single()
+    supabase.from('profiles').select('company_name,logo_url,plan,paid_through,is_admin').eq('id', proposal.user_id).single()
   ])
 
   return {
