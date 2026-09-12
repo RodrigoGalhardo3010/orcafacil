@@ -14,7 +14,7 @@ async function submit() {
     const redirectTo = `${window.location.origin}/redefinir-senha`
     const { error } = await supabase.auth.resetPasswordForEmail(email.value.trim(), { redirectTo })
     if (error) throw error
-    message.value = 'Se existir uma conta com esse e-mail, enviamos um link para você criar uma nova senha. Confira a caixa de entrada e também o spam.'
+    message.value = 'Se existir uma conta com esse e-mail, enviamos um link para você criar uma nova senha. Não achou? Confira a pasta de spam ou lixo eletrônico.'
   } catch (error: any) {
     errorMessage.value = error?.message || 'Não foi possível enviar o link agora. Tente novamente em instantes.'
   } finally {

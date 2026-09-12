@@ -36,7 +36,7 @@ async function submit() {
       })
       if (error) throw error
       if (data.session) await navigateTo(dashboardTarget())
-      else message.value = 'Conta criada. Confira seu e-mail para confirmar o cadastro.'
+      else message.value = 'Conta criada! Enviamos um link de confirmação para o seu e-mail. Não achou? Confira a pasta de spam ou lixo eletrônico.'
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email: email.value, password: password.value })
       if (error) throw error
