@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
   if (lockError || !requestId) throw createError({ statusCode: 409, statusMessage: 'Uma tentativa de assinatura está em andamento. Aguarde dois minutos e tente novamente com o mesmo plano e período.' })
   let completed = false
   try {
-  const { data: profile, error: profileError } = await supabase.from('profiles').select('subscription_id,plan,plan_status,paid_through').eq('id', user.id).single()
+  const { data: profile, error: profileError } = await supabase.from('profiles').select('subscription_id,plan,plan_status,paid_through,is_admin').eq('id', user.id).single()
   if (profileError || !profile) throw createError({ statusCode: 500, statusMessage: 'Erro ao carregar sua conta.' })
   if (effectivePlan(profile) !== 'free') {
     completed = true
