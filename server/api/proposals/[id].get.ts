@@ -5,12 +5,11 @@ export default defineEventHandler(async (event) => {
   const { proposal, items } = await getProposalForOwner(event, id, user.id)
   const config = useRuntimeConfig(event)
 
-  const { data: negotiations } = await supabase.from('proposal_negotiations')
-    .select('*').eq('proposal_id', proposal.id).order('created_at', { ascending: false })
+  const rounds = await getProposalRounds(supabase, proposal.id)
 
   return {
     proposal: { ...proposal, items },
-    negotiations: negotiations || [],
+    rounds,
     publicUrl: `${config.public.siteUrl}/p/${proposal.public_token}`,
     pdfUrl: `${config.public.siteUrl}/api/public/proposals/${proposal.public_token}/pdf`
   }

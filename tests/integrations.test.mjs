@@ -143,6 +143,21 @@ test('effectivePlan never grants access beyond the paid period', () => {
   assert.equal(entitlements.effectivePlan({ plan: 'essencial', paid_through: null, is_admin: true }, now), 'pro')
 })
 
+test('negotiation rounds track the open round, sequence and money rounding', () => {
+  const negotiation = load('server/utils/negotiation.ts')
+  const rounds = [
+    { seq: 1, kind: 'request', actor: 'buyer', status: 'superseded' },
+    { seq: 2, kind: 'counter', actor: 'seller', status: 'open' }
+  ]
+  assert.equal(negotiation.openRound(rounds).seq, 2)
+  assert.equal(negotiation.openRound([{ status: 'accepted' }]), null)
+  assert.equal(negotiation.nextRoundSeq(rounds), 3)
+  assert.equal(negotiation.nextRoundSeq([]), 1)
+  assert.equal(negotiation.roundMoney(299.995), 300)
+  assert.equal(negotiation.roundMoney(1.005), 1.01)
+  assert.equal(negotiation.roundMoney(19.994), 19.99)
+})
+
 test('billing validates an exact contract amount in cents instead of a plan id', () => {
   const plans = load('server/utils/plans.ts')
   const billing = load('server/utils/billing.ts', plans)

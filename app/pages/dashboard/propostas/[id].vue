@@ -13,14 +13,32 @@ const publicUrl = ref('')
 const pdfUrl = ref('')
 const proposal = ref<any>(null)
 const sharing = ref(false)
-const negotiations = ref<any[]>([])
+const rounds = ref<any[]>([])
 const negotiatingAction = ref('')
 const counterTotal = ref('')
 const counterTerms = ref('')
-const openNegotiation = computed(() => negotiations.value.find(n => n.status === 'open') || null)
+const openRound = computed(() => rounds.value.find(r => r.status === 'open') || null)
+const sellerTurn = computed(() => openRound.value?.actor === 'buyer' && openRound.value?.kind === 'request')
 
 function money(value: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+}
+function actorLabel(actor: string) {
+  return actor === 'seller' ? 'Você' : 'Cliente'
+}
+function roundTitle(round: any) {
+  if (round.kind === 'request') return `${actorLabel(round.actor)} pediu`
+  if (round.kind === 'counter') return `${actorLabel(round.actor)} contrapropôs`
+  if (round.kind === 'accept') return `${actorLabel(round.actor)} aceitou`
+  return `${actorLabel(round.actor)} recusou`
+}
+function roundStatusLabel(status: string) {
+  return ({ open: 'Aguardando resposta', accepted: 'Aceita', rejected: 'Recusada', superseded: 'Substituída' } as Record<string, string>)[status] || status
+}
+function roundValue(round: any) {
+  if (round.kind === 'request' || round.kind === 'counter') return `${money(round.total)}${round.payment_terms ? ` · ${round.payment_terms}` : ''}`
+  if (round.kind === 'accept' && round.total != null) return money(round.total)
+  return ''
 }
 const subtotal = computed(() => proposal.value?.items?.reduce((sum: number, item: any) => sum + Number(item.quantity || 0) * Number(item.unit_price || 0), 0) || 0)
 const total = computed(() => Math.max(0, subtotal.value - Number(proposal.value?.discount || 0)))
@@ -31,7 +49,7 @@ async function load() {
     proposal.value = result.proposal
     publicUrl.value = result.publicUrl
     pdfUrl.value = result.pdfUrl
-    negotiations.value = result.negotiations || []
+    rounds.value = result.rounds || []
   } catch (error: any) {
     errorMessage.value = error?.data?.statusMessage || error?.message || 'Não foi possível carregar.'
   } finally {
@@ -117,8 +135,8 @@ async function shareWhatsApp() {
 }
 
 async function respondToNegotiation(decision: 'accept' | 'reject' | 'counter') {
-  const neg = openNegotiation.value
-  if (!neg) return
+  const open = openRound.value
+  if (!open) return
   if (decision === 'counter' && !counterTotal.value) {
     errorMessage.value = 'Informe o valor da contraproposta.'
     return
@@ -133,19 +151,19 @@ async function respondToNegotiation(decision: 'accept' | 'reject' | 'counter') {
       body.counter_payment_terms = counterTerms.value
     }
     const result = await request<any>(`/api/proposals/${route.params.id}/negotiate/respond`, { method: 'POST', body })
-    if (decision === 'counter') {
-      successMessage.value = 'Contraproposta criada e enviada.'
-      await navigateTo(`/dashboard/propostas/${result.proposal.id}`)
-      return
-    }
+    proposal.value = { ...proposal.value, ...result.proposal }
+    const mark = (status: string) => rounds.value.map(r => r.id === open.id ? { ...r, status } : r)
     if (decision === 'accept') {
-      proposal.value = { ...proposal.value, ...result.proposal }
-      negotiations.value = negotiations.value.map(n => n.id === neg.id ? { ...n, status: 'accepted' } : n)
+      rounds.value = mark('accepted')
       successMessage.value = result.emailSent ? 'Desconto aplicado e proposta reenviada por e-mail.' : 'Desconto aplicado. Reenvie o link pelo WhatsApp abaixo.'
-    } else {
-      proposal.value.status = 'sent'
-      negotiations.value = negotiations.value.map(n => n.id === neg.id ? { ...n, status: 'rejected' } : n)
+    } else if (decision === 'reject') {
+      rounds.value = mark('rejected')
       successMessage.value = 'Solicitação recusada. A proposta continua válida com o valor original.'
+    } else {
+      rounds.value = mark('superseded')
+      counterTotal.value = ''
+      counterTerms.value = ''
+      successMessage.value = result.emailSent ? 'Contraproposta enviada e cliente avisado por e-mail.' : 'Contraproposta enviada. Avise o cliente pelo WhatsApp abaixo.'
     }
   } catch (error: any) {
     errorMessage.value = error?.data?.statusMessage || error?.message || 'Erro ao responder.'
@@ -176,11 +194,27 @@ onMounted(load)
             <button class="btn btn-primary btn-small" :disabled="sending" @click="sendProposal">{{ sending ? 'Enviando...' : (proposal.status === 'draft' ? 'Enviar proposta' : 'Reenviar') }}</button>
           </div>
         </div>
-        <section v-if="openNegotiation" class="card form-section negotiation-card">
+        <section v-if="rounds.length" class="card form-section negotiation-card">
+          <h2>Histórico da negociação</h2>
+          <ol class="negotiation-timeline">
+            <li class="round-row round-baseline">
+              <div class="round-head"><strong>Proposta original</strong></div>
+              <div class="round-body">{{ money(proposal.original_total ?? proposal.total) }}<span v-if="proposal.original_payment_terms || proposal.payment_terms"> · {{ proposal.original_payment_terms || proposal.payment_terms }}</span></div>
+            </li>
+            <li v-for="round in rounds" :key="round.id || round.seq" class="round-row" :class="`round-${round.status}`">
+              <div class="round-head"><strong>{{ roundTitle(round) }}</strong><span class="round-chip">{{ roundStatusLabel(round.status) }}</span></div>
+              <div v-if="roundValue(round)" class="round-body">{{ roundValue(round) }}</div>
+              <div v-if="round.message" class="round-message">“{{ round.message }}”</div>
+              <div class="round-time">{{ new Date(round.created_at).toLocaleString('pt-BR') }}</div>
+            </li>
+          </ol>
+        </section>
+
+        <section v-if="sellerTurn" class="card form-section negotiation-card">
           <h2>Solicitação de desconto</h2>
-          <p><strong>{{ proposal.client_name }}</strong> pediu <strong>{{ money(openNegotiation.requested_total) }}</strong><span v-if="openNegotiation.requested_payment_terms"> com a condição: {{ openNegotiation.requested_payment_terms }}</span>.</p>
-          <p v-if="openNegotiation.message" class="negotiation-message">"{{ openNegotiation.message }}"</p>
-          <p class="fine-print">Valor original: {{ money(subtotal) }} (total atual {{ money(total) }}).</p>
+          <p><strong>{{ proposal.client_name }}</strong> pediu <strong>{{ money(openRound.total) }}</strong><span v-if="openRound.payment_terms"> com a condição: {{ openRound.payment_terms }}</span>.</p>
+          <p v-if="openRound.message" class="negotiation-message">"{{ openRound.message }}"</p>
+          <p class="fine-print">Lembrete: você pode fazer apenas uma contraproposta. Depois dela, o cliente só poderá aceitar ou recusar.</p>
           <div class="negotiation-actions">
             <button class="btn btn-primary btn-small" :disabled="!!negotiatingAction" @click="respondToNegotiation('accept')">{{ negotiatingAction === 'accept' ? 'Aplicando...' : 'Aceitar e reenviar' }}</button>
             <button class="btn btn-secondary btn-small" :disabled="!!negotiatingAction" @click="respondToNegotiation('reject')">{{ negotiatingAction === 'reject' ? 'Recusando...' : 'Recusar' }}</button>
@@ -188,8 +222,13 @@ onMounted(load)
           <div class="counter-row">
             <input v-model="counterTotal" inputmode="decimal" placeholder="Valor da contraproposta (R$)" />
             <input v-model="counterTerms" placeholder="Condição de pagamento" />
-            <button class="btn btn-dark btn-small" :disabled="!!negotiatingAction" @click="respondToNegotiation('counter')">{{ negotiatingAction === 'counter' ? 'Criando...' : 'Fazer contraproposta' }}</button>
+            <button class="btn btn-dark btn-small" :disabled="!!negotiatingAction" @click="respondToNegotiation('counter')">{{ negotiatingAction === 'counter' ? 'Enviando...' : 'Fazer contraproposta' }}</button>
           </div>
+        </section>
+
+        <section v-else-if="openRound" class="card form-section negotiation-card">
+          <h2>Contraproposta enviada</h2>
+          <p>Você contrapropôs <strong>{{ money(openRound.total) }}</strong><span v-if="openRound.payment_terms"> com a condição: {{ openRound.payment_terms }}</span>. Agora está aguardando a resposta do cliente (ele só poderá aceitar ou recusar).</p>
         </section>
         <form class="editor-grid" @submit.prevent="save">
           <section class="card form-section"><h2>Cliente</h2><div class="form-grid two"><label>Nome / empresa<input v-model="proposal.client_name" required /></label><label>E-mail<input v-model="proposal.client_email" type="email" /></label><label>WhatsApp<input v-model="proposal.client_phone" /></label><label>Validade<input v-model="proposal.valid_until" type="date" /></label></div></section>

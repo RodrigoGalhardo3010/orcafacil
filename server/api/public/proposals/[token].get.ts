@@ -4,9 +4,10 @@ export default defineEventHandler(async (event) => {
   const { data: proposal, error } = await supabase.from('proposals').select('*').eq('public_token', token).neq('status', 'draft').single()
   if (error || !proposal) throw createError({ statusCode: 404, statusMessage: 'Proposta não encontrada.' })
 
-  const [{ data: items }, { data: profile }] = await Promise.all([
+  const [{ data: items }, { data: profile }, rounds] = await Promise.all([
     supabase.from('proposal_items').select('description,quantity,unit_price,sort_order').eq('proposal_id', proposal.id).order('sort_order'),
-    supabase.from('profiles').select('company_name,logo_url,plan,paid_through,is_admin').eq('id', proposal.user_id).single()
+    supabase.from('profiles').select('company_name,logo_url,plan,paid_through,is_admin').eq('id', proposal.user_id).single(),
+    getProposalRounds(supabase, proposal.id)
   ])
 
   return {
@@ -23,10 +24,14 @@ export default defineEventHandler(async (event) => {
       total: proposal.total,
       currency: proposal.currency,
       status: proposal.status,
+      original_total: proposal.original_total,
+      original_discount: proposal.original_discount,
+      original_payment_terms: proposal.original_payment_terms,
       company_name: profile?.company_name || 'Proposta comercial',
       logo_url: profile?.logo_url || null,
       branded: !planRemovesBranding(effectivePlan(profile)),
       items: items || []
-    }
+    },
+    rounds
   }
 })

@@ -212,7 +212,6 @@ onMounted(load)
           <option value="accepted">Aceita</option>
           <option value="rejected">Recusada</option>
           <option value="expired">Expirada</option>
-          <option value="renegociada">Renegociada</option>
         </select>
         <input v-model="filterClient" placeholder="Buscar cliente" @keyup.enter="applyFilters" />
         <input v-model="filterFrom" type="date" title="De" />

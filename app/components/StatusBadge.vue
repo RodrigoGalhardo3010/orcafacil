@@ -6,8 +6,7 @@ const labels: Record<string, string> = {
   negotiating: 'Em negociação',
   accepted: 'Aceita',
   rejected: 'Recusada',
-  expired: 'Expirada',
-  renegociada: 'Renegociada'
+  expired: 'Expirada'
 }
 </script>
 

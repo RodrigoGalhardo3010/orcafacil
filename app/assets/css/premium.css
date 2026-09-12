@@ -20,7 +20,6 @@ body:not(:has(.public-proposal-page)) .status-sent{background:#192c45;color:#9ec
 body:not(:has(.public-proposal-page)) .status-accepted{background:#183d2e;color:#90f0bd!important}
 body:not(:has(.public-proposal-page)) .status-rejected{background:#40252b;color:#ffc0bb!important}
 body:not(:has(.public-proposal-page)) .status-negotiating{background:#332c16;color:#ffe08a!important}
-body:not(:has(.public-proposal-page)) .status-renegociada{background:#2a2340;color:#cdb9ff!important}
 body:not(:has(.public-proposal-page)) .contrast-section{background:#11151e}
 .topbar{height:88px;border-bottom:1px solid var(--line)}
 .brand{letter-spacing:-.05em;font-size:23px}.brand-mark{border:1px solid #5aebae55;border-radius:9px}
