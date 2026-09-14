@@ -15,7 +15,7 @@
     "NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_DI7tyjzkJmRggpx5uS_eiA_oqHoPd8n",
     "NUXT_PUBLIC_CF_BEACON_TOKEN": "9e32c8ee965e4765b7974ef4f0900c7d",
     "NUXT_PUBLIC_GOOGLE_AUTH_ENABLED": "true",
-    "NUXT_PUBLIC_GOOGLE_CLIENT_ID": "",
+    "NUXT_PUBLIC_GOOGLE_CLIENT_ID": "615059144842-am7ang5agesct52bmh0184a898226c0h.apps.googleusercontent.com",
     "NUXT_RESEND_FROM_EMAIL": "OrçaFácil <propostas@operatehub.cloud>"
   },
   "routes": [

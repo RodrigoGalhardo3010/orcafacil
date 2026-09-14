@@ -16,5 +16,5 @@ node_modules
 coverage
 .cache/
 supabase/.temp/
-.tmp-*.png
-.chrome-tmp/
+.tmp-*
+.chrome-*
