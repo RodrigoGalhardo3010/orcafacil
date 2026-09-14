@@ -20,7 +20,8 @@ export default defineNuxtConfig({
       supabaseUrl: '',
       supabasePublishableKey: '',
       cfBeaconToken: '',
-      googleAuthEnabled: ''
+      googleAuthEnabled: '',
+      googleClientId: ''
     }
   },
   app: {

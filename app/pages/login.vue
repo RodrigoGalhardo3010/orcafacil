@@ -4,7 +4,10 @@ const route = useRoute()
 const supabase = useSupabase()
 const config = useRuntimeConfig()
 const mode = ref(route.query.mode === 'signup' ? 'signup' : 'login')
-const googleEnabled = computed(() => Boolean(config.public.googleAuthEnabled))
+const googleClientId = String(config.public.googleClientId || '')
+const googleRedirectEnabled = Boolean(config.public.googleAuthEnabled)
+const googleEnabled = computed(() => Boolean(googleClientId) || googleRedirectEnabled)
+const googleButtonEl = ref<HTMLElement | null>(null)
 const name = ref('')
 const company = ref('')
 const email = ref('')
@@ -20,7 +23,64 @@ function dashboardTarget() {
     : '/dashboard'
 }
 
-async function loginWithGoogle() {
+// --- Login com Google no próprio domínio (Google Identity Services + ID token) ---
+// Assim a tela do Google mostra o nosso domínio, e não o <projeto>.supabase.co.
+function loadGoogleScript() {
+  return new Promise<void>((resolve, reject) => {
+    const w = window as any
+    if (w.google?.accounts?.id) return resolve()
+    const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]')
+    if (existing) {
+      existing.addEventListener('load', () => resolve())
+      existing.addEventListener('error', () => reject(new Error('Falha ao carregar o Google.')))
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Falha ao carregar o Google.'))
+    document.head.appendChild(script)
+  })
+}
+
+async function handleGoogleCredential(response: any) {
+  loading.value = true
+  errorMessage.value = ''
+  try {
+    const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: response?.credential })
+    if (error) throw error
+    await navigateTo(dashboardTarget())
+  } catch (error: any) {
+    errorMessage.value = error?.message || 'Não foi possível entrar com o Google.'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function mountGoogleButton() {
+  if (!googleClientId || !googleButtonEl.value) return
+  try {
+    await loadGoogleScript()
+    const g = (window as any).google
+    const width = Math.min(400, Math.max(200, googleButtonEl.value.clientWidth || 320))
+    g.accounts.id.initialize({
+      client_id: googleClientId,
+      callback: handleGoogleCredential,
+      use_fedcm_for_prompt: true
+    })
+    g.accounts.id.renderButton(googleButtonEl.value, {
+      type: 'standard', theme: 'filled_black', size: 'large', text: 'continue_with',
+      shape: 'rectangular', logo_alignment: 'left', width
+    })
+  } catch (error: any) {
+    errorMessage.value = error?.message || 'Não foi possível carregar o botão do Google.'
+  }
+}
+
+// Fluxo antigo (redireciona pelo Supabase) — usado só como reserva.
+async function loginWithGoogleRedirect() {
   loading.value = true
   errorMessage.value = ''
   try {
@@ -66,6 +126,8 @@ async function submit() {
     loading.value = false
   }
 }
+
+onMounted(mountGoogleButton)
 </script>
 
 <template>
@@ -78,7 +140,8 @@ async function submit() {
         <p>{{ mode === 'signup' ? 'Envie até 3 propostas por mês sem pagar.' : 'Acesse suas propostas e acompanhe seus clientes.' }}</p>
 
         <template v-if="googleEnabled">
-          <button type="button" class="btn btn-secondary full" :disabled="loading" @click="loginWithGoogle">Continuar com Google</button>
+          <div v-if="googleClientId" ref="googleButtonEl" class="google-slot"></div>
+          <button v-else type="button" class="btn btn-secondary full" :disabled="loading" @click="loginWithGoogleRedirect">Continuar com Google</button>
           <div class="auth-divider"><span>ou com e-mail</span></div>
         </template>
 

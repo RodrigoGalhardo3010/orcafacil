@@ -91,6 +91,7 @@ textarea { resize: vertical; }
 .password-row { display: flex; align-items: center; gap: 8px; }
 .password-row input { flex: 1; min-width: 0; }
 .password-toggle { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; padding: 6px 0; white-space: nowrap; }
+.google-slot { display: flex; justify-content: center; width: 100%; min-height: 44px; }
 .notice { border-radius: 12px; padding: 12px 14px; font-size: 13px; }
 .notice.success { background: #ecfdf5; color: #166534; border: 1px solid #bbf7d0; }
 .notice.error { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
