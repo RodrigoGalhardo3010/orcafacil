@@ -2,11 +2,14 @@
 import { isBillingCycle } from '~~/shared/billing-catalog'
 const route = useRoute()
 const supabase = useSupabase()
+const config = useRuntimeConfig()
 const mode = ref(route.query.mode === 'signup' ? 'signup' : 'login')
+const googleEnabled = computed(() => Boolean(config.public.googleAuthEnabled))
 const name = ref('')
 const company = ref('')
 const email = ref('')
 const password = ref('')
+const showPassword = ref(false)
 const loading = ref(false)
 const message = ref('')
 const errorMessage = ref('')
@@ -15,6 +18,21 @@ function dashboardTarget() {
   return route.query.plan === 'essencial' || route.query.plan === 'pro'
     ? `/dashboard?plan=${route.query.plan}&cycle=${isBillingCycle(route.query.cycle) ? route.query.cycle : 'monthly'}`
     : '/dashboard'
+}
+
+async function loginWithGoogle() {
+  loading.value = true
+  errorMessage.value = ''
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/dashboard` }
+    })
+    if (error) throw error
+  } catch (error: any) {
+    errorMessage.value = error?.message || 'Não foi possível entrar com o Google.'
+    loading.value = false
+  }
 }
 
 async function submit() {
@@ -59,14 +77,25 @@ async function submit() {
         <h1>{{ mode === 'signup' ? 'Crie sua conta' : 'Entre no OrçaFácil' }}</h1>
         <p>{{ mode === 'signup' ? 'Envie até 3 propostas por mês sem pagar.' : 'Acesse suas propostas e acompanhe seus clientes.' }}</p>
 
+        <template v-if="googleEnabled">
+          <button type="button" class="btn btn-secondary full" :disabled="loading" @click="loginWithGoogle">Continuar com Google</button>
+          <div class="auth-divider"><span>ou com e-mail</span></div>
+        </template>
+
         <form class="form-stack" @submit.prevent="submit">
           <template v-if="mode === 'signup'">
             <label>Seu nome<input v-model="name" required autocomplete="name" placeholder="Seu nome" /></label>
             <label>Empresa<input v-model="company" required autocomplete="organization" placeholder="Nome da empresa" /></label>
           </template>
           <label>E-mail<input v-model="email" type="email" required autocomplete="email" placeholder="voce@empresa.com.br" /></label>
-          <label>Senha<input v-model="password" type="password" minlength="8" required autocomplete="current-password" placeholder="Mínimo 8 caracteres" /></label>
+          <label>Senha
+            <span class="password-row">
+              <input v-model="password" :type="showPassword ? 'text' : 'password'" minlength="8" required :autocomplete="mode === 'signup' ? 'new-password' : 'current-password'" placeholder="Mínimo 8 caracteres" />
+              <button type="button" class="password-toggle" @click="showPassword = !showPassword">{{ showPassword ? 'Ocultar' : 'Mostrar' }}</button>
+            </span>
+          </label>
           <button class="btn btn-primary full" :disabled="loading">{{ loading ? 'Aguarde...' : (mode === 'signup' ? 'Criar conta' : 'Entrar') }}</button>
+          <p v-if="mode === 'signup'" class="fine-print">Sem cartão de crédito · Funciona no celular · Cancele quando quiser.</p>
         </form>
         <p v-if="message" class="notice success">{{ message }}</p>
         <p v-if="errorMessage" class="notice error">{{ errorMessage }}</p>

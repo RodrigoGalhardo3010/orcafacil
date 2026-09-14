@@ -19,7 +19,8 @@ export default defineNuxtConfig({
       siteUrl: 'http://localhost:3000',
       supabaseUrl: '',
       supabasePublishableKey: '',
-      cfBeaconToken: ''
+      cfBeaconToken: '',
+      googleAuthEnabled: ''
     }
   },
   app: {

@@ -86,6 +86,11 @@ textarea { resize: vertical; }
 .switch { margin-top: 20px; color: #166534; font-weight: 700; }
 .auth-links { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 20px; }
 .auth-links .switch { margin-top: 0; }
+.auth-divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 6px 0 2px; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.password-row { display: flex; align-items: center; gap: 8px; }
+.password-row input { flex: 1; min-width: 0; }
+.password-toggle { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; padding: 6px 0; white-space: nowrap; }
 .notice { border-radius: 12px; padding: 12px 14px; font-size: 13px; }
 .notice.success { background: #ecfdf5; color: #166534; border: 1px solid #bbf7d0; }
 .notice.error { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
