@@ -108,7 +108,11 @@ async function submit() {
         options: {
           data: {
             full_name: name.value,
-            company_name: company.value
+            company_name: company.value,
+            utm_source: String(route.query.utm_source || ''),
+            utm_campaign: String(route.query.utm_campaign || ''),
+            utm_medium: String(route.query.utm_medium || ''),
+            utm_content: String(route.query.utm_content || '')
           }
         }
       })

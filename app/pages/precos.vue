@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { billingOffer, BILLING_CYCLES, type BillingCycle } from '~~/shared/billing-catalog'
 const cycle = ref<BillingCycle>('monthly')
+const { utmSuffix } = useUtm()
 const money = (cents: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cents / 100)
 useSeoMeta({ title: 'Preços', description: 'Planos do OrçaFácil para enviar propostas comerciais profissionais.' })
 </script>
@@ -27,7 +28,7 @@ useSeoMeta({ title: 'Preços', description: 'Planos do OrçaFácil para enviar p
             <li>PDF, link público e aceite</li>
             <li>Marca OrçaFácil no rodapé</li>
           </ul>
-          <NuxtLink class="btn btn-secondary full" to="/login?mode=signup">Começar grátis</NuxtLink>
+          <NuxtLink class="btn btn-secondary full" :to="`/login?mode=signup${utmSuffix}`">Começar grátis</NuxtLink>
         </article>
 
         <article class="card pricing-card featured">
@@ -42,7 +43,7 @@ useSeoMeta({ title: 'Preços', description: 'Planos do OrçaFácil para enviar p
             <li>PDF, e-mail, WhatsApp e aceite</li>
             <li>Sem marca OrçaFácil no rodapé</li>
           </ul>
-          <NuxtLink class="btn btn-primary full" :to="`/login?mode=signup&plan=essencial&cycle=${cycle}`">Escolher Essencial</NuxtLink>
+          <NuxtLink class="btn btn-primary full" :to="`/login?mode=signup&plan=essencial&cycle=${cycle}${utmSuffix}`">Escolher Essencial</NuxtLink>
         </article>
 
         <article class="card pricing-card">
@@ -56,7 +57,7 @@ useSeoMeta({ title: 'Preços', description: 'Planos do OrçaFácil para enviar p
             <li>PDF, e-mail, WhatsApp e aceite</li>
             <li>Sem marca OrçaFácil no rodapé</li>
           </ul>
-          <NuxtLink class="btn btn-dark full" :to="`/login?mode=signup&plan=pro&cycle=${cycle}`">Escolher Pro</NuxtLink>
+          <NuxtLink class="btn btn-dark full" :to="`/login?mode=signup&plan=pro&cycle=${cycle}${utmSuffix}`">Escolher Pro</NuxtLink>
         </article>
       </div>
       <p class="lead small">Cancele a renovação pelo painel. O acesso continua até o fim do período pago. Para mudar de plano ou período, cancele a renovação e contrate a nova opção após o término do acesso.</p>
