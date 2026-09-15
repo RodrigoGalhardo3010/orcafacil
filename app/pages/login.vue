@@ -51,7 +51,7 @@ async function handleGoogleCredential(response: any) {
   try {
     const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: response?.credential })
     if (error) throw error
-    await navigateTo(dashboardTarget())
+    window.location.href = dashboardTarget()
   } catch (error: any) {
     errorMessage.value = error?.message || 'Não foi possível entrar com o Google.'
   } finally {
@@ -117,12 +117,12 @@ async function submit() {
         }
       })
       if (error) throw error
-      if (data.session) await navigateTo(dashboardTarget())
+      if (data.session) window.location.href = dashboardTarget()
       else message.value = 'Conta criada! Enviamos um link de confirmação para o seu e-mail. Não achou? Confira a pasta de spam ou lixo eletrônico.'
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email: email.value, password: password.value })
       if (error) throw error
-      await navigateTo(dashboardTarget())
+      window.location.href = dashboardTarget()
     }
   } catch (error: any) {
     errorMessage.value = error?.message || 'Não foi possível concluir. Tente novamente.'
@@ -131,7 +131,12 @@ async function submit() {
   }
 }
 
-onMounted(mountGoogleButton)
+onMounted(async () => {
+  mountGoogleButton()
+  // Se já está logado, leva direto ao painel.
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session) window.location.href = '/dashboard'
+})
 </script>
 
 <template>
