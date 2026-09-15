@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://easybudget.operatehub.cloud/sitemap.xml
